@@ -11,11 +11,12 @@ export interface FavoritesListProps {
 }
 
 export function FavoritesList({ initialEvents }: FavoritesListProps) {
-  const { isFavorite, isHydrated } = useFavorites();
+  const { status, isFavorite } = useFavorites();
 
-  const visibleEvents = isHydrated
-    ? initialEvents.filter((e) => isFavorite(e.id))
-    : initialEvents;
+  const visibleEvents =
+    status === 'ready'
+      ? initialEvents.filter((e) => isFavorite(e.id))
+      : initialEvents;
 
   if (visibleEvents.length === 0) {
     return (
@@ -44,7 +45,7 @@ export function FavoritesList({ initialEvents }: FavoritesListProps) {
   return (
     <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {visibleEvents.map((event) => (
-        <EventCard key={event.id} event={event} />
+        <EventCard key={event.id} event={event} initialFavorite />
       ))}
     </div>
   );

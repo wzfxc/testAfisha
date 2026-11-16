@@ -8,9 +8,10 @@ import { formatEventDate } from '@/lib/utils';
 
 export interface EventCardProps {
   event: Event;
+  initialFavorite?: boolean;
 }
 
-export function EventCard({ event }: EventCardProps) {
+export function EventCard({ event, initialFavorite }: EventCardProps) {
   return (
     <Card className="flex h-full flex-col justify-between transition-colors hover:border-slate-300">
       <div>
@@ -27,7 +28,10 @@ export function EventCard({ event }: EventCardProps) {
               </Link>
             </CardTitle>
           </div>
-          <FavoriteButton eventId={event.id} />
+          <FavoriteButton
+            eventId={event.id}
+            {...(initialFavorite !== undefined ? { initialFavorite } : {})}
+          />
         </CardHeader>
 
         <CardContent className="space-y-3">

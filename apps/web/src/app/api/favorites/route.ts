@@ -10,6 +10,7 @@ export async function GET(): Promise<NextResponse> {
     {
       headers: {
         'Cache-Control': 'no-store, max-age=0',
+        Vary: 'Cookie',
       },
     },
   );

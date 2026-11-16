@@ -14,10 +14,12 @@ import {
 import { AlertCircle, X } from 'lucide-react';
 import { setFavoriteAction } from '@/app/actions/favorites';
 
+export type FavoritesStatus = 'loading' | 'ready' | 'error';
+
 interface FavoritesContextValue {
+  status: FavoritesStatus;
   favoriteIds: number[];
   favoritesCount: number;
-  isHydrated: boolean;
   isFavorite: (eventId: number) => boolean;
   toggleFavorite: (eventId: number) => void;
 }
@@ -39,7 +41,9 @@ export function FavoritesProvider({
   children,
 }: FavoritesProviderProps) {
   const [committedIds, setCommittedIds] = useState<number[]>(initialFavoriteIds);
-  const [isHydrated, setIsHydrated] = useState<boolean>(initialFavoriteIds.length > 0);
+  const [status, setStatus] = useState<FavoritesStatus>(
+    initialFavoriteIds.length > 0 ? 'ready' : 'loading',
+  );
   const [toastError, setToastError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
@@ -50,18 +54,31 @@ export function FavoritesProvider({
   useEffect(() => {
     let active = true;
     fetch('/api/favorites', { cache: 'no-store' })
-      .then((res) => (res.ok ? (res.json() as Promise<{ favoriteIds: number[] }>) : null))
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        return (await res.json()) as { favoriteIds?: unknown };
+      })
       .then((data) => {
-        if (active && data && Array.isArray(data.favoriteIds)) {
+        if (!active) {
+          return;
+        }
+        if (data && Array.isArray(data.favoriteIds)) {
+          const validIds = data.favoriteIds.filter(
+            (id): id is number => typeof id === 'number' && Number.isInteger(id) && id > 0,
+          );
           if (desiredMapRef.current.size === 0) {
-            setCommittedIds(data.favoriteIds);
+            setCommittedIds(validIds);
           }
-          setIsHydrated(true);
+          setStatus('ready');
+        } else {
+          setStatus('error');
         }
       })
       .catch(() => {
         if (active) {
-          setIsHydrated(true);
+          setStatus('error');
         }
       });
     return () => {
@@ -89,7 +106,10 @@ export function FavoritesProvider({
 
   const toggleFavorite = useCallback(
     (eventId: number): void => {
-      setIsHydrated(true);
+      if (status !== 'ready') {
+        return;
+      }
+
       const currentDesired =
         desiredMapRef.current.get(eventId) ?? committedIds.includes(eventId);
       const nextDesired = !currentDesired;
@@ -126,21 +146,21 @@ export function FavoritesProvider({
 
         writeQueueRef.current = task.catch(() => {
           desiredMapRef.current.delete(eventId);
-          setToastError('Network error while saving favorite. Rolled back.');
+          setToastError('Could not save favorite. Your changes were rolled back.');
         });
 
         await writeQueueRef.current;
       });
     },
-    [applyOptimistic, committedIds],
+    [applyOptimistic, committedIds, status],
   );
 
   return (
     <FavoritesContext.Provider
       value={{
+        status,
         favoriteIds: optimisticIds,
         favoritesCount: optimisticIds.length,
-        isHydrated,
         isFavorite,
         toggleFavorite,
       }}

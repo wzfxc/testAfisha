@@ -5,7 +5,8 @@ import { Heart } from 'lucide-react';
 import { useFavorites } from '@/components/providers/favorites-provider';
 
 export function HeaderFavoritesLink() {
-  const { favoritesCount } = useFavorites();
+  const { status, favoritesCount } = useFavorites();
+  const isReady = status === 'ready';
 
   return (
     <Link
@@ -15,18 +16,32 @@ export function HeaderFavoritesLink() {
     >
       <Heart
         className={
-          favoritesCount > 0
+          isReady && favoritesCount > 0
             ? 'h-4 w-4 fill-red-500 text-red-500'
-            : 'h-4 w-4 text-slate-500'
+            : 'h-4 w-4 text-slate-400'
         }
       />
       <span>Favorites</span>
-      <span
-        aria-label={`${favoritesCount} favorite events`}
-        className="inline-flex min-w-5 items-center justify-center rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-800"
-      >
-        {favoritesCount}
-      </span>
+      {status === 'loading' ? (
+        <span
+          aria-label="Loading favorites count"
+          className="inline-flex h-5 min-w-5 animate-pulse items-center justify-center rounded bg-slate-200 px-1.5 py-0.5"
+        />
+      ) : status === 'error' ? (
+        <span
+          aria-label="Favorites unavailable"
+          className="inline-flex h-5 min-w-5 items-center justify-center rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-400"
+        >
+          &mdash;
+        </span>
+      ) : (
+        <span
+          aria-label={`${favoritesCount} favorite events`}
+          className="inline-flex h-5 min-w-5 items-center justify-center rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-800"
+        >
+          {favoritesCount}
+        </span>
+      )}
     </Link>
   );
 }

@@ -149,6 +149,12 @@ Inside Stage 2 (`builder`) of `apps/web/Dockerfile`, `@app/api` is built and sta
 - **Atomic & Serialized `PATCH` Writes:** All `update()` calls are serialized via an in-memory promise mutex so concurrent `PATCH` requests never clobber each other, writing to a same-directory temp file followed by `fs.rename()`. In-memory state and caches are updated only **after** `fs.rename()` succeeds; any disk error returns `500` while keeping memory and cache consistent. `SIGTERM` waits for active requests and pending file writes before exiting.
 - **Resetting Data in Docker:** Because runtime state is stored in the `api_data` named volume, `docker compose restart api` preserves edits, whereas `docker compose down -v` wipes the volume and resets data back to `events.seed.json`.
 
+### 7. Favorites State on Static Pages & Zero Cross-User Cache Leak (`favorites-provider.tsx`)
+- **Keeping `layout.tsx` Static-Friendly:** `RootLayout` does **not** call `cookies()` or `headers()`. Calling `cookies()` in `layout.tsx` would opt the entire tree out of static generation, breaking SSG/ISR for `/events/[id]`.
+- **Two-Stage Hydration Without Flash of `0`:** On SSG/ISR pages (`/` and `/events/[id]`), `FavoritesProvider` initializes with `status: 'loading'` and fetches the user's HTTP-only cookie per browser session from `GET /api/favorites` (`dynamic = 'force-dynamic'`, `Cache-Control: no-store, max-age=0`, `Vary: Cookie`). While `status === 'loading'`, `HeaderFavoritesLink` and `FavoriteButton` display neutral fixed-width skeleton placeholders (never `0` or an inactive heart) so the UI does not jump on hydration.
+- **`/favorites` Dynamic SSR:** `src/app/favorites/page.tsx` (`force-dynamic`) reads `cookies()` on the server and passes `initialEvents` directly into `<FavoritesList>`, rendering the saved cards immediately with zero empty flash.
+- **Zero Cache Leak Across Users:** Neither the static HTML / ISR cache of `/events/[id]` nor `fetchEventById` (`cache: 'force-cache'`) ever reads or embeds `afisha_favorites`, and `/api/favorites` sends `Cache-Control: no-store` so shared caches never store per-user favorites.
+
 ---
 
 ## 5. `next build` Output & Bundle Verification

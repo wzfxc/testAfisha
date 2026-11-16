@@ -34,3 +34,4 @@ export function serializeFavoriteIds(ids: number[]): { uniqueIds: number[]; json
     json: JSON.stringify(uniqueIds),
   };
 }
+

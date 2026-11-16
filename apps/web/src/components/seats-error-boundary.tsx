@@ -61,3 +61,4 @@ export class SeatsErrorBoundary extends Component<
     return this.props.children;
   }
 }
+

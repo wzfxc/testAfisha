@@ -1,16 +1,36 @@
 services:
+  secret-init:
+    image: alpine:3.21
+    container_name: afisha-secret-init
+    restart: "no"
+    command:
+      - sh
+      - -eu
+      - -c
+      - |
+        if [ ! -s /secrets/internal_secret ]; then
+          umask 022
+          head -c 32 /dev/urandom | base64 | tr -d '\n' > /secrets/internal_secret
+          chmod 0444 /secrets/internal_secret
+        fi
+    volumes:
+      - internal_secret:/secrets
+
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
     container_name: afisha-api
     restart: unless-stopped
+    depends_on:
+      secret-init:
+        condition: service_completed_successfully
     expose:
       - "4000"
     environment:
       NODE_ENV: production
       PORT: 4000
-      INTERNAL_SECRET: ${INTERNAL_SECRET:-afisha-prod-internal-secret-2026}
+      INTERNAL_SECRET_FILE: /run/secrets/internal_secret
       RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-60}
       TRUST_PROXY_HOPS: 0
@@ -24,6 +44,7 @@ services:
       SEED_FILE: /app/data/events.seed.json
     volumes:
       - api_data:/app/runtime-data
+      - internal_secret:/run/secrets:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/health"]
       interval: 10s
@@ -35,11 +56,11 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-      args:
-        INTERNAL_SECRET: ${INTERNAL_SECRET:-afisha-prod-internal-secret-2026}
     container_name: afisha-web
     restart: unless-stopped
     depends_on:
+      secret-init:
+        condition: service_completed_successfully
       api:
         condition: service_healthy
     expose:
@@ -50,7 +71,9 @@ services:
       HOSTNAME: "0.0.0.0"
       API_URL: http://api:4000
       API_TIMEOUT_MS: 5000
-      INTERNAL_SECRET: ${INTERNAL_SECRET:-afisha-prod-internal-secret-2026}
+      INTERNAL_SECRET_FILE: /run/secrets/internal_secret
+    volumes:
+      - internal_secret:/run/secrets:ro
 
   proxy:
     image: nginx:1.27-alpine
@@ -65,3 +88,4 @@ services:
 
 volumes:
   api_data:
+  internal_secret:

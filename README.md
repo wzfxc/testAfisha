@@ -54,7 +54,14 @@ docker compose up --build
    pnpm -r typecheck
    ```
 
-3. **Start the backend and frontend in development mode:**
+3. **Generate a local `INTERNAL_SECRET`** (for local runs without Docker; copy `.env.example` to `apps/api/.env` and `apps/web/.env.local`):
+   ```bash
+   openssl rand -base64 32
+   # or with Node.js:
+   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+   ```
+
+4. **Start the backend and frontend in development mode:**
    ```bash
    # Terminal 1 — Start the Express API on http://localhost:4000
    pnpm dev:api
@@ -97,7 +104,8 @@ pnpm --filter @app/web test
 | **`GET /events/:id`** (Single event details) | **Backend (`apps/api`):** In-memory `PromiseCache<Event \| null>` backed by `lru-cache` keyed by `id`.<br>**Frontend (`apps/web`):** Pre-rendered at build time for the **15 nearest events** (`generateStaticParams` / SSG), and cached via Next.js Data & Full Route Cache (`cache: 'force-cache'`, `dynamicParams = true`) on first request for the remaining 45 events. | **Backend TTL:** `60,000 ms` (`60s`), max `500` entries.<br>**Next.js Full Route Cache:** Persistent until revalidated. | **Backend:** Explicitly evicted via `itemCache.delete(String(id))` on `PATCH /events/:id`.<br>**Frontend:** Explicitly purged via `revalidatePath('/events/' + id)` and `revalidatePath('/events/' + id + '/edit')` inside the `updateEventAction` Server Action. |
 | **`GET /cities`** (Unique sorted city list) | **Backend (`apps/api`):** In-memory `PromiseCache<string[]>` backed by `lru-cache` under key `'cities'`. | **TTL:** `60,000 ms` (`60s`)<br>**Max Size:** `500` entries | Expires automatically after the `60s` TTL (city list is static across title/description edits). |
 | **`GET /events/:id/seats`** (Available seats counter) | **NEVER CACHED.** Served directly from in-memory capacity metadata (`peekById`) with `Cache-Control: no-store` on both `apps/api` and the Next.js `/api/events/[id]/seats` Route Handler proxy. | **TTL:** `0` (`no-store`) | N/A — generates a fresh cryptographically random integer (`0..capacity`) on every request without artificial DB latency. |
-| **User Favorites (`/favorites`)** | **Per-User HTTP-Only Cookie** (`afisha_favorites`, `httpOnly: true`, `sameSite: 'lax'`, `path: '/'`). Never stored in any shared server cache. | **Cookie Max-Age:** `30 days` (`2,592,000s`) | Updated per user via the `setFavoriteAction` Server Action (`Set-Cookie`) + `revalidatePath('/favorites')`. |
+| **User Favorites (`/favorites`)** | **Per-User HTTP-Only Cookie** (`afisha_favorites`, `httpOnly: true`, `sameSite: 'lax'`, `path: '/'`). Never stored in any shared server cache (`GET /api/favorites` uses `no-store` + `Vary: Cookie`; static HTML/ISR contains zero user favorites). | **Cookie Max-Age:** `30 days` (`2,592,000s`) | Updated per user via the `setFavoriteAction` Server Action (`Set-Cookie`) + `revalidatePath('/favorites')`. |
+| **Runtime Events Store (`DATA_FILE`)** | **Persistent JSON File + In-Memory Map (`apps/api`):** Seeded on startup from `events.seed.json` if missing (`apps/api/data/events.json` locally or `/app/runtime-data/events.json` in Docker named volume `api_data`). | **Persistent across restarts** (`docker compose restart api`) | Updated atomically (temp file + `fs.rename()`) on `PATCH /events/:id`. Reset to `events.seed.json` by removing the file or running `docker compose down -v`. |
 
 ---
 
@@ -144,7 +152,7 @@ pnpm --filter @app/web test
   - **Event Details (`src/app/events/[id]/page.tsx`):** Once the event record is resolved, live seat telemetry is isolated inside `<Suspense fallback={<SeatsSectionSkeleton />}><SeatsSection ... /></Suspense>`.
 
 ### 4. Solving the Docker Build-Time API Dilemma (`apps/web/Dockerfile`)
-Inside Stage 2 (`builder`) of `apps/web/Dockerfile`, `@app/api` is built and started in the background on `127.0.0.1:4000` with `INTERNAL_SECRET`, `wget` waits for `/health`, `pnpm --filter @app/web build` pre-renders the 15 nearest events via `generateStaticParams`, and `kill -TERM` cleanly shuts down the temporary API server. Stage 3 (`runner`) runs `node apps/web/server.js` as non-root user `nextjs` (`UID 1001`).
+Inside Stage 2 (`builder`) of `apps/web/Dockerfile`, an ephemeral random secret is generated inside the same `RUN` command (`INTERNAL_SECRET="$(head -c 32 /dev/urandom | base64 | tr -d '\n')"` — never passed via `ARG`), `@app/api` starts in the background on `127.0.0.1:4000`, `wget` waits for `/health`, `pnpm --filter @app/web build` pre-renders the 15 nearest events via `generateStaticParams`, `kill -TERM` cleanly drains and stops the temporary API, and `grep` verifies the ephemeral build secret did not leak into `.next/standalone` or `.next/static`. Stage 3 (`runner`) runs as non-root user `nextjs` (`UID 1001`).
 
 ### 5. Search, City Filter & Pagination Soft Navigation (`search-filters.tsx`)
 - All filter transitions on `/` — debounced search input (`300ms`), city dropdown selection (`handleCityChange`), pagination controls (`EventsPagination`), and filter reset (`handleReset`) — use `startTransition(() => router.replace(href, { scroll: false }))` with zero full-page reloads.
@@ -172,6 +180,11 @@ Inside Stage 2 (`builder`) of `apps/web/Dockerfile`, `@app/api` is built and sta
   - Route `error.tsx` boundaries (`/`, `/favorites`, `/events/[id]`, `/events/[id]/edit`) and `global-error.tsx` avoid raw `error.message` (masked in Next.js production), resolving user messages by `digest` while displaying `digest` in small muted text for log correlation.
   - List errors on `/` and `/favorites` render `<InlineApiError>` inside `<Suspense>` so the header and filters remain operational; `/events/[id]` wraps live seats inside `<SeatsErrorBoundary>` and `SeatsPoller` applies `Retry-After` on `429` plus exponential backoff (5s→60s) on upstream errors while keeping existing chart samples.
   - `/events/[id]/edit` validates with `UpdateEventBodySchema`, returns `{ ok: false, fieldErrors, formError, values }` from `updateEventAction` (never throws on 4xx/5xx, calls `notFound()` on 404), preserves user input in controlled fields, uses `useFormStatus()` to disable double-submits, and marks invalid inputs via `aria-invalid` / `aria-describedby`.
+
+### 9. Secret Management Without Hardcoded Secrets (`docker-compose.yml`, `secret.ts`)
+- **No Secrets in Git or Image Layers:** All `.env.example` templates, `docker-compose.yml`, and Dockerfiles contain zero default or hardcoded secret values (`git ls-files` tracks only `.env.example` templates).
+- **Docker Runtime Init Volume:** A one-shot `secret-init` service (`alpine:3.21`, `restart: "no"`) generates a random 32-byte base64 secret into `/secrets/internal_secret` (`chmod 0444`) in the `internal_secret` named volume on first boot. Both `api` and `web` wait for `secret-init` (`service_completed_successfully`), mount the volume `:ro`, and receive only `INTERNAL_SECRET_FILE=/run/secrets/internal_secret` (nothing appears in `docker inspect` `Config.Env`).
+- **Fail-Fast & Local Env Support:** Both `api` (`loadConfig`) and `web` (`getInternalSecret`, `instrumentation.ts`, and container startup) support `INTERNAL_SECRET_FILE` as well as `INTERNAL_SECRET` from env for local development, and fail immediately on production startup if no secret is provided.
 
 ---
 

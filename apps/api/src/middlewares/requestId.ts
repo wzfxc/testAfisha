@@ -18,3 +18,4 @@ export const requestIdMiddleware: RequestHandler = (req, res, next) => {
   res.setHeader(REQUEST_ID_HEADER, requestId);
   next();
 };
+

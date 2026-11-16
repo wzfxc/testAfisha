@@ -17,6 +17,7 @@ import {
   ApiUnavailableError,
   parseApiHttpError,
 } from '@/lib/api-errors';
+import { getInternalSecret } from '@/lib/secret';
 
 export { ApiHttpError, ApiUnavailableError };
 
@@ -30,14 +31,6 @@ function getApiTimeoutMs(): number {
     return raw;
   }
   return DEFAULT_API_TIMEOUT_MS;
-}
-
-function getInternalSecret(): string | undefined {
-  const secret = process.env.INTERNAL_SECRET?.trim() || undefined;
-  if (process.env.NODE_ENV === 'production' && !secret) {
-    throw new Error('INTERNAL_SECRET environment variable is required in production');
-  }
-  return secret;
 }
 
 export async function getClientIp(): Promise<string | undefined> {

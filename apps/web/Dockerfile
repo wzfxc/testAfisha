@@ -19,14 +19,10 @@ COPY apps/web ./apps/web
 
 RUN pnpm --filter @app/api build
 
-ARG INTERNAL_SECRET
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN set -eu; \
-    if [ -z "${INTERNAL_SECRET:-}" ]; then \
-      echo "ERROR: INTERNAL_SECRET build arg is required" >&2; \
-      exit 1; \
-    fi; \
+    INTERNAL_SECRET="$(head -c 32 /dev/urandom | base64 | tr -d '\n')"; \
     PORT=4000 \
     NODE_ENV=production \
     INTERNAL_SECRET="${INTERNAL_SECRET}" \
@@ -46,7 +42,12 @@ RUN set -eu; \
     INTERNAL_SECRET="${INTERNAL_SECRET}" \
     pnpm --filter @app/web build; \
     kill -TERM "${API_PID}" 2>/dev/null || true; \
-    wait "${API_PID}" 2>/dev/null || true
+    wait "${API_PID}" 2>/dev/null || true; \
+    rm -f /tmp/build-events.json; \
+    if grep -rnF "${INTERNAL_SECRET}" apps/web/.next/standalone apps/web/.next/static; then \
+      echo "ERROR: Build secret leaked into Next.js output!" >&2; \
+      exit 1; \
+    fi
 
 FROM node:22-alpine AS runner
 WORKDIR /app
@@ -67,4 +68,4 @@ USER nextjs
 
 EXPOSE 3000
 
-CMD ["node", "apps/web/server.js"]
+CMD ["sh", "-eu", "-c", "if [ -n \"${INTERNAL_SECRET_FILE:-}\" ]; then if [ ! -s \"${INTERNAL_SECRET_FILE}\" ]; then echo \"ERROR: INTERNAL_SECRET_FILE (${INTERNAL_SECRET_FILE}) is missing or empty\" >&2; exit 1; fi; INTERNAL_SECRET=\"$(tr -d '\\r\\n' < \"${INTERNAL_SECRET_FILE}\")\"; export INTERNAL_SECRET; fi; if [ -z \"${INTERNAL_SECRET:-}\" ]; then echo \"ERROR: INTERNAL_SECRET or INTERNAL_SECRET_FILE is required\" >&2; exit 1; fi; exec node apps/web/server.js"]

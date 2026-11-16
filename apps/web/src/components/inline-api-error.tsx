@@ -46,3 +46,4 @@ export function InlineApiError({ message, digest }: InlineApiErrorProps) {
     </div>
   );
 }
+

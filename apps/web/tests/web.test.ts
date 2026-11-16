@@ -61,3 +61,4 @@ test('buildHref: omits empty q and page=1 while preserving active filters and pa
   assert.equal(buildHref('/', { q: 'jazz', city: 'Kyiv', page: 2 }), '/?city=Kyiv&q=jazz&page=2');
   assert.equal(buildHref('/', { q: 'jazz', page: 1 }), '/?q=jazz');
 });
+

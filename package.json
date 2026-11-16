@@ -1,0 +1,12 @@
+{
+  "name": "afisha-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.6.5",
+  "scripts": {
+    "dev:api": "pnpm --filter @app/api dev",
+    "build:api": "pnpm --filter @app/api build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @app/api test"
+  }
+}

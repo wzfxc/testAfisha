@@ -1,0 +1,542 @@
+[
+  {
+    "id": 1,
+    "title": "Grand Stand-up Show #1",
+    "description": "A stand-up comedy show featuring headliners and rising stars of the scene. Hosted in Kyiv at Atlas Hall.",
+    "city": "Kyiv",
+    "venue": "Atlas Hall",
+    "date": "2027-03-25T16:00:00.000Z",
+    "capacity": 710
+  },
+  {
+    "id": 2,
+    "title": "Urban City Marathon #2",
+    "description": "A city-wide road race with 5K, 10K and half-marathon distances for all levels. Hosted in Kharkiv at Club Hub 42.",
+    "city": "Kharkiv",
+    "venue": "Club Hub 42",
+    "date": "2027-05-24T14:00:00.000Z",
+    "capacity": 1950
+  },
+  {
+    "id": 3,
+    "title": "Grand Tech Conference #3",
+    "description": "A full-day conference with talks, workshops and networking for software engineers. Hosted in Odesa at Odesa Philharmonic.",
+    "city": "Odesa",
+    "venue": "Odesa Philharmonic",
+    "date": "2027-06-22T11:00:00.000Z",
+    "capacity": 1990
+  },
+  {
+    "id": 4,
+    "title": "Open-Air Board Game Convention #4",
+    "description": "Open tables, tournaments and new releases for board game fans of all ages. Hosted in Dnipro at Mystetskyi Dvir.",
+    "city": "Dnipro",
+    "venue": "Mystetskyi Dvir",
+    "date": "2027-06-11T15:00:00.000Z",
+    "capacity": 590
+  },
+  {
+    "id": 5,
+    "title": "Urban Art Exhibition #5",
+    "description": "A curated exhibition of contemporary painting, photography and installations. Hosted in Berlin at Tempodrom.",
+    "city": "Berlin",
+    "venue": "Tempodrom",
+    "date": "2027-01-26T18:00:00.000Z",
+    "capacity": 160
+  },
+  {
+    "id": 6,
+    "title": "Winter Classical Evening #6",
+    "description": "A symphony orchestra performs masterpieces of the classical repertoire. Hosted in Warsaw at Torwar Hall.",
+    "city": "Warsaw",
+    "venue": "Torwar Hall",
+    "date": "2027-02-09T14:00:00.000Z",
+    "capacity": 1400
+  },
+  {
+    "id": 7,
+    "title": "Winter Startup Pitch Night #7",
+    "description": "Ten early-stage startups pitch to investors and a live audience. Hosted in Berlin at Tempodrom.",
+    "city": "Berlin",
+    "venue": "Tempodrom",
+    "date": "2027-03-08T15:00:00.000Z",
+    "capacity": 370
+  },
+  {
+    "id": 8,
+    "title": "Spring Indie Rock Concert #8",
+    "description": "Guitars, loud amps and an energetic crowd: a night of indie rock bands. Hosted in Kyiv at Atlas Hall.",
+    "city": "Kyiv",
+    "venue": "Atlas Hall",
+    "date": "2027-03-13T21:00:00.000Z",
+    "capacity": 250
+  },
+  {
+    "id": 9,
+    "title": "Urban Art Exhibition #9",
+    "description": "A curated exhibition of contemporary painting, photography and installations. Hosted in Odesa at Odesa Philharmonic.",
+    "city": "Odesa",
+    "venue": "Odesa Philharmonic",
+    "date": "2027-06-24T15:00:00.000Z",
+    "capacity": 560
+  },
+  {
+    "id": 10,
+    "title": "Open-Air Indie Rock Concert #10",
+    "description": "Guitars, loud amps and an energetic crowd: a night of indie rock bands. Hosted in Lviv at Lviv Arena.",
+    "city": "Lviv",
+    "venue": "Lviv Arena",
+    "date": "2027-02-09T17:00:00.000Z",
+    "capacity": 2270
+  },
+  {
+    "id": 11,
+    "title": "Open-Air Wine Tasting #11",
+    "description": "A guided tasting of boutique wines paired with local cheeses. Hosted in Kharkiv at Club Hub 42.",
+    "city": "Kharkiv",
+    "venue": "Club Hub 42",
+    "date": "2026-12-24T21:00:00.000Z",
+    "capacity": 110
+  },
+  {
+    "id": 12,
+    "title": "Urban Startup Pitch Night #12",
+    "description": "Ten early-stage startups pitch to investors and a live audience. Hosted in Dnipro at Mystetskyi Dvir.",
+    "city": "Dnipro",
+    "venue": "Mystetskyi Dvir",
+    "date": "2027-01-05T16:00:00.000Z",
+    "capacity": 430
+  },
+  {
+    "id": 13,
+    "title": "Spring Indie Rock Concert #13",
+    "description": "Guitars, loud amps and an energetic crowd: a night of indie rock bands. Hosted in Berlin at Tempodrom.",
+    "city": "Berlin",
+    "venue": "Tempodrom",
+    "date": "2027-01-03T11:00:00.000Z",
+    "capacity": 720
+  },
+  {
+    "id": 14,
+    "title": "Spring Jazz Night #14",
+    "description": "An intimate evening of live jazz with a rotating line-up of local and guest musicians. Hosted in Prague at Lucerna Hall.",
+    "city": "Prague",
+    "venue": "Lucerna Hall",
+    "date": "2027-07-28T15:00:00.000Z",
+    "capacity": 350
+  },
+  {
+    "id": 15,
+    "title": "Urban Wine Tasting #15",
+    "description": "A guided tasting of boutique wines paired with local cheeses. Hosted in Kyiv at Stereo Plaza.",
+    "city": "Kyiv",
+    "venue": "Stereo Plaza",
+    "date": "2027-01-05T18:00:00.000Z",
+    "capacity": 120
+  },
+  {
+    "id": 16,
+    "title": "Royal Startup Pitch Night #16",
+    "description": "Ten early-stage startups pitch to investors and a live audience. Hosted in Kyiv at Atlas Hall.",
+    "city": "Kyiv",
+    "venue": "Atlas Hall",
+    "date": "2027-03-09T17:00:00.000Z",
+    "capacity": 440
+  },
+  {
+    "id": 17,
+    "title": "Open-Air Indie Rock Concert #17",
+    "description": "Guitars, loud amps and an energetic crowd: a night of indie rock bands. Hosted in Kyiv at Atlas Hall.",
+    "city": "Kyiv",
+    "venue": "Atlas Hall",
+    "date": "2027-04-28T13:00:00.000Z",
+    "capacity": 1580
+  },
+  {
+    "id": 18,
+    "title": "Golden Food Festival #18",
+    "description": "Street food, chefs' stages and tastings from dozens of regional kitchens. Hosted in Lviv at Dovzhenko Centre.",
+    "city": "Lviv",
+    "venue": "Dovzhenko Centre",
+    "date": "2027-09-17T16:00:00.000Z",
+    "capacity": 4090
+  },
+  {
+    "id": 19,
+    "title": "Annual Food Festival #19",
+    "description": "Street food, chefs' stages and tastings from dozens of regional kitchens. Hosted in Odesa at Odesa Philharmonic.",
+    "city": "Odesa",
+    "venue": "Odesa Philharmonic",
+    "date": "2027-08-07T11:00:00.000Z",
+    "capacity": 4230
+  },
+  {
+    "id": 20,
+    "title": "Golden Art Exhibition #20",
+    "description": "A curated exhibition of contemporary painting, photography and installations. Hosted in Kharkiv at Maxim Gorky Park.",
+    "city": "Kharkiv",
+    "venue": "Maxim Gorky Park",
+    "date": "2027-04-06T21:00:00.000Z",
+    "capacity": 440
+  },
+  {
+    "id": 21,
+    "title": "Open-Air Art Exhibition #21",
+    "description": "A curated exhibition of contemporary painting, photography and installations. Hosted in Berlin at Funkhaus.",
+    "city": "Berlin",
+    "venue": "Funkhaus",
+    "date": "2026-12-27T14:00:00.000Z",
+    "capacity": 510
+  },
+  {
+    "id": 22,
+    "title": "Spring Wine Tasting #22",
+    "description": "A guided tasting of boutique wines paired with local cheeses. Hosted in Prague at Lucerna Hall.",
+    "city": "Prague",
+    "venue": "Lucerna Hall",
+    "date": "2027-06-17T19:00:00.000Z",
+    "capacity": 100
+  },
+  {
+    "id": 23,
+    "title": "Sunset Art Exhibition #23",
+    "description": "A curated exhibition of contemporary painting, photography and installations. Hosted in Prague at O2 Arena.",
+    "city": "Prague",
+    "venue": "O2 Arena",
+    "date": "2027-08-20T21:00:00.000Z",
+    "capacity": 350
+  },
+  {
+    "id": 24,
+    "title": "Sunset Wine Tasting #24",
+    "description": "A guided tasting of boutique wines paired with local cheeses. Hosted in Lviv at Lviv Arena.",
+    "city": "Lviv",
+    "venue": "Lviv Arena",
+    "date": "2026-12-06T13:00:00.000Z",
+    "capacity": 150
+  },
+  {
+    "id": 25,
+    "title": "Spring Board Game Convention #25",
+    "description": "Open tables, tournaments and new releases for board game fans of all ages. Hosted in Odesa at Odesa Philharmonic.",
+    "city": "Odesa",
+    "venue": "Odesa Philharmonic",
+    "date": "2027-06-30T16:00:00.000Z",
+    "capacity": 1040
+  },
+  {
+    "id": 26,
+    "title": "Midnight Food Festival #26",
+    "description": "Street food, chefs' stages and tastings from dozens of regional kitchens. Hosted in Lviv at Dovzhenko Centre.",
+    "city": "Lviv",
+    "venue": "Dovzhenko Centre",
+    "date": "2027-02-20T19:00:00.000Z",
+    "capacity": 3910
+  },
+  {
+    "id": 27,
+    "title": "Sunset Classical Evening #27",
+    "description": "A symphony orchestra performs masterpieces of the classical repertoire. Hosted in Dnipro at Mystetskyi Dvir.",
+    "city": "Dnipro",
+    "venue": "Mystetskyi Dvir",
+    "date": "2027-01-14T10:00:00.000Z",
+    "capacity": 1000
+  },
+  {
+    "id": 28,
+    "title": "Annual Startup Pitch Night #28",
+    "description": "Ten early-stage startups pitch to investors and a live audience. Hosted in Warsaw at Progresja.",
+    "city": "Warsaw",
+    "venue": "Progresja",
+    "date": "2027-04-04T20:00:00.000Z",
+    "capacity": 140
+  },
+  {
+    "id": 29,
+    "title": "Spring Tech Conference #29",
+    "description": "A full-day conference with talks, workshops and networking for software engineers. Hosted in Dnipro at Zaporizhzhia Hall.",
+    "city": "Dnipro",
+    "venue": "Zaporizhzhia Hall",
+    "date": "2027-09-10T15:00:00.000Z",
+    "capacity": 2420
+  },
+  {
+    "id": 30,
+    "title": "Grand Art Exhibition #30",
+    "description": "A curated exhibition of contemporary painting, photography and installations. Hosted in Prague at O2 Arena.",
+    "city": "Prague",
+    "venue": "O2 Arena",
+    "date": "2027-04-20T13:00:00.000Z",
+    "capacity": 510
+  },
+  {
+    "id": 31,
+    "title": "Spring Art Exhibition #31",
+    "description": "A curated exhibition of contemporary painting, photography and installations. Hosted in Kyiv at Atlas Hall.",
+    "city": "Kyiv",
+    "venue": "Atlas Hall",
+    "date": "2027-02-06T10:00:00.000Z",
+    "capacity": 310
+  },
+  {
+    "id": 32,
+    "title": "Annual Indie Rock Concert #32",
+    "description": "Guitars, loud amps and an energetic crowd: a night of indie rock bands. Hosted in Kyiv at Stereo Plaza.",
+    "city": "Kyiv",
+    "venue": "Stereo Plaza",
+    "date": "2027-06-04T13:00:00.000Z",
+    "capacity": 2100
+  },
+  {
+    "id": 33,
+    "title": "Winter Board Game Convention #33",
+    "description": "Open tables, tournaments and new releases for board game fans of all ages. Hosted in Odesa at Green Theatre.",
+    "city": "Odesa",
+    "venue": "Green Theatre",
+    "date": "2027-03-01T21:00:00.000Z",
+    "capacity": 1330
+  },
+  {
+    "id": 34,
+    "title": "Grand Film Festival #34",
+    "description": "A multi-day showcase of independent shorts and feature films with Q&A sessions. Hosted in Kharkiv at Maxim Gorky Park.",
+    "city": "Kharkiv",
+    "venue": "Maxim Gorky Park",
+    "date": "2027-09-08T17:00:00.000Z",
+    "capacity": 450
+  },
+  {
+    "id": 35,
+    "title": "Royal Startup Pitch Night #35",
+    "description": "Ten early-stage startups pitch to investors and a live audience. Hosted in Kharkiv at Kharkiv Palace.",
+    "city": "Kharkiv",
+    "venue": "Kharkiv Palace",
+    "date": "2027-04-29T18:00:00.000Z",
+    "capacity": 350
+  },
+  {
+    "id": 36,
+    "title": "Golden Film Festival #36",
+    "description": "A multi-day showcase of independent shorts and feature films with Q&A sessions. Hosted in Kharkiv at Maxim Gorky Park.",
+    "city": "Kharkiv",
+    "venue": "Maxim Gorky Park",
+    "date": "2027-03-31T10:00:00.000Z",
+    "capacity": 1130
+  },
+  {
+    "id": 37,
+    "title": "Open-Air City Marathon #37",
+    "description": "A city-wide road race with 5K, 10K and half-marathon distances for all levels. Hosted in Warsaw at Torwar Hall.",
+    "city": "Warsaw",
+    "venue": "Torwar Hall",
+    "date": "2027-09-16T11:00:00.000Z",
+    "capacity": 3860
+  },
+  {
+    "id": 38,
+    "title": "Open-Air Wine Tasting #38",
+    "description": "A guided tasting of boutique wines paired with local cheeses. Hosted in Berlin at Columbiahalle.",
+    "city": "Berlin",
+    "venue": "Columbiahalle",
+    "date": "2027-06-26T10:00:00.000Z",
+    "capacity": 30
+  },
+  {
+    "id": 39,
+    "title": "Winter Wine Tasting #39",
+    "description": "A guided tasting of boutique wines paired with local cheeses. Hosted in Kyiv at Atlas Hall.",
+    "city": "Kyiv",
+    "venue": "Atlas Hall",
+    "date": "2027-05-22T18:00:00.000Z",
+    "capacity": 150
+  },
+  {
+    "id": 40,
+    "title": "Spring Film Festival #40",
+    "description": "A multi-day showcase of independent shorts and feature films with Q&A sessions. Hosted in Kyiv at Atlas Hall.",
+    "city": "Kyiv",
+    "venue": "Atlas Hall",
+    "date": "2027-07-29T14:00:00.000Z",
+    "capacity": 360
+  },
+  {
+    "id": 41,
+    "title": "Royal Board Game Convention #41",
+    "description": "Open tables, tournaments and new releases for board game fans of all ages. Hosted in Kyiv at Atlas Hall.",
+    "city": "Kyiv",
+    "venue": "Atlas Hall",
+    "date": "2027-09-15T19:00:00.000Z",
+    "capacity": 910
+  },
+  {
+    "id": 42,
+    "title": "Grand Indie Rock Concert #42",
+    "description": "Guitars, loud amps and an energetic crowd: a night of indie rock bands. Hosted in Odesa at Green Theatre.",
+    "city": "Odesa",
+    "venue": "Green Theatre",
+    "date": "2027-07-01T16:00:00.000Z",
+    "capacity": 1600
+  },
+  {
+    "id": 43,
+    "title": "Open-Air Startup Pitch Night #43",
+    "description": "Ten early-stage startups pitch to investors and a live audience. Hosted in Odesa at Green Theatre.",
+    "city": "Odesa",
+    "venue": "Green Theatre",
+    "date": "2027-05-19T13:00:00.000Z",
+    "capacity": 110
+  },
+  {
+    "id": 44,
+    "title": "Sunset Food Festival #44",
+    "description": "Street food, chefs' stages and tastings from dozens of regional kitchens. Hosted in Warsaw at Progresja.",
+    "city": "Warsaw",
+    "venue": "Progresja",
+    "date": "2027-05-18T20:00:00.000Z",
+    "capacity": 680
+  },
+  {
+    "id": 45,
+    "title": "Royal Stand-up Show #45",
+    "description": "A stand-up comedy show featuring headliners and rising stars of the scene. Hosted in Warsaw at Torwar Hall.",
+    "city": "Warsaw",
+    "venue": "Torwar Hall",
+    "date": "2027-06-07T12:00:00.000Z",
+    "capacity": 630
+  },
+  {
+    "id": 46,
+    "title": "Sunset Tech Conference #46",
+    "description": "A full-day conference with talks, workshops and networking for software engineers. Hosted in Prague at O2 Arena.",
+    "city": "Prague",
+    "venue": "O2 Arena",
+    "date": "2027-07-06T13:00:00.000Z",
+    "capacity": 2700
+  },
+  {
+    "id": 47,
+    "title": "Grand City Marathon #47",
+    "description": "A city-wide road race with 5K, 10K and half-marathon distances for all levels. Hosted in Berlin at Columbiahalle.",
+    "city": "Berlin",
+    "venue": "Columbiahalle",
+    "date": "2027-01-30T12:00:00.000Z",
+    "capacity": 1130
+  },
+  {
+    "id": 48,
+    "title": "Midnight Wine Tasting #48",
+    "description": "A guided tasting of boutique wines paired with local cheeses. Hosted in Prague at Lucerna Hall.",
+    "city": "Prague",
+    "venue": "Lucerna Hall",
+    "date": "2027-01-26T13:00:00.000Z",
+    "capacity": 70
+  },
+  {
+    "id": 49,
+    "title": "Spring Classical Evening #49",
+    "description": "A symphony orchestra performs masterpieces of the classical repertoire. Hosted in Odesa at Odesa Philharmonic.",
+    "city": "Odesa",
+    "venue": "Odesa Philharmonic",
+    "date": "2027-06-03T10:00:00.000Z",
+    "capacity": 1500
+  },
+  {
+    "id": 50,
+    "title": "Grand Indie Rock Concert #50",
+    "description": "Guitars, loud amps and an energetic crowd: a night of indie rock bands. Hosted in Lviv at Dovzhenko Centre.",
+    "city": "Lviv",
+    "venue": "Dovzhenko Centre",
+    "date": "2027-04-22T18:00:00.000Z",
+    "capacity": 1150
+  },
+  {
+    "id": 51,
+    "title": "Open-Air Wine Tasting #51",
+    "description": "A guided tasting of boutique wines paired with local cheeses. Hosted in Kharkiv at Kharkiv Palace.",
+    "city": "Kharkiv",
+    "venue": "Kharkiv Palace",
+    "date": "2027-02-13T16:00:00.000Z",
+    "capacity": 160
+  },
+  {
+    "id": 52,
+    "title": "Winter City Marathon #52",
+    "description": "A city-wide road race with 5K, 10K and half-marathon distances for all levels. Hosted in Kharkiv at Kharkiv Palace.",
+    "city": "Kharkiv",
+    "venue": "Kharkiv Palace",
+    "date": "2027-02-12T13:00:00.000Z",
+    "capacity": 2450
+  },
+  {
+    "id": 53,
+    "title": "Sunset Startup Pitch Night #53",
+    "description": "Ten early-stage startups pitch to investors and a live audience. Hosted in Dnipro at Zaporizhzhia Hall.",
+    "city": "Dnipro",
+    "venue": "Zaporizhzhia Hall",
+    "date": "2027-03-08T17:00:00.000Z",
+    "capacity": 500
+  },
+  {
+    "id": 54,
+    "title": "Annual Food Festival #54",
+    "description": "Street food, chefs' stages and tastings from dozens of regional kitchens. Hosted in Berlin at Funkhaus.",
+    "city": "Berlin",
+    "venue": "Funkhaus",
+    "date": "2027-09-12T17:00:00.000Z",
+    "capacity": 2720
+  },
+  {
+    "id": 55,
+    "title": "Spring Jazz Night #55",
+    "description": "An intimate evening of live jazz with a rotating line-up of local and guest musicians. Hosted in Berlin at Tempodrom.",
+    "city": "Berlin",
+    "venue": "Tempodrom",
+    "date": "2027-02-26T19:00:00.000Z",
+    "capacity": 360
+  },
+  {
+    "id": 56,
+    "title": "Winter Stand-up Show #56",
+    "description": "A stand-up comedy show featuring headliners and rising stars of the scene. Hosted in Lviv at Dovzhenko Centre.",
+    "city": "Lviv",
+    "venue": "Dovzhenko Centre",
+    "date": "2027-02-12T10:00:00.000Z",
+    "capacity": 490
+  },
+  {
+    "id": 57,
+    "title": "Urban Classical Evening #57",
+    "description": "A symphony orchestra performs masterpieces of the classical repertoire. Hosted in Kyiv at Stereo Plaza.",
+    "city": "Kyiv",
+    "venue": "Stereo Plaza",
+    "date": "2027-08-31T16:00:00.000Z",
+    "capacity": 350
+  },
+  {
+    "id": 58,
+    "title": "Sunset Art Exhibition #58",
+    "description": "A curated exhibition of contemporary painting, photography and installations. Hosted in Odesa at Green Theatre.",
+    "city": "Odesa",
+    "venue": "Green Theatre",
+    "date": "2027-05-18T21:00:00.000Z",
+    "capacity": 420
+  },
+  {
+    "id": 59,
+    "title": "Sunset Food Festival #59",
+    "description": "Street food, chefs' stages and tastings from dozens of regional kitchens. Hosted in Odesa at Green Theatre.",
+    "city": "Odesa",
+    "venue": "Green Theatre",
+    "date": "2027-01-21T13:00:00.000Z",
+    "capacity": 880
+  },
+  {
+    "id": 60,
+    "title": "Midnight Food Festival #60",
+    "description": "Street food, chefs' stages and tastings from dozens of regional kitchens. Hosted in Dnipro at Zaporizhzhia Hall.",
+    "city": "Dnipro",
+    "venue": "Zaporizhzhia Hall",
+    "date": "2027-04-13T10:00:00.000Z",
+    "capacity": 4940
+  }
+]

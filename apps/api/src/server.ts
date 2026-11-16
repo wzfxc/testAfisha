@@ -32,7 +32,7 @@ async function bootstrap(): Promise<void> {
 
   let isShuttingDown = false;
 
-  const shutdown = (signal: NodeJS.Signals): void => {
+  const shutdown = (signal: string, exitCode = 0): void => {
     if (isShuttingDown) {
       return;
     }
@@ -62,13 +62,21 @@ async function bootstrap(): Promise<void> {
             return;
           }
           console.log('[shutdown] All active requests finished. Server closed cleanly.');
-          process.exit(0);
+          process.exit(exitCode);
         });
     });
   };
 
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM', 0));
+  process.on('SIGINT', () => shutdown('SIGINT', 0));
+  process.on('unhandledRejection', (reason: unknown) => {
+    console.error('[fatal] Unhandled Promise rejection:', reason);
+    shutdown('unhandledRejection', 1);
+  });
+  process.on('uncaughtException', (err: Error) => {
+    console.error('[fatal] Uncaught exception:', err);
+    shutdown('uncaughtException', 1);
+  });
 }
 
 bootstrap().catch((err: unknown) => {

@@ -1,13 +1,9 @@
 import { NextResponse } from 'next/server';
 import { EventIdParamsSchema } from '@app/shared';
-import { ApiHttpError, fetchEventSeats } from '@/lib/api';
+import { ApiHttpError, ApiUnavailableError, fetchEventSeats } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * Same-origin proxy for `/events/:id/seats` so client-side polling never exposes
- * `process.env.API_URL` or `process.env.INTERNAL_SECRET` in the client bundle.
- */
 export async function GET(
   _req: Request,
   context: { params: Promise<{ id: string }> },
@@ -17,7 +13,7 @@ export async function GET(
 
   if (!parsed.success) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION_ERROR', message: 'Invalid event ID' } },
+      { error: { code: 'VALIDATION_ERROR', message: 'Invalid event ID', requestId: 'web' } },
       { status: 400 },
     );
   }
@@ -34,15 +30,54 @@ export async function GET(
     );
   } catch (err: unknown) {
     if (err instanceof ApiHttpError) {
+      const headers = new Headers({ 'Cache-Control': 'no-store, max-age=0' });
+      if (err.retryAfter !== undefined) {
+        headers.set('Retry-After', String(err.retryAfter));
+      }
+      if (err.requestId) {
+        headers.set('x-request-id', err.requestId);
+      }
       return NextResponse.json(
-        { error: { message: err.message } },
-        { status: err.status },
+        {
+          error: {
+            code: err.code,
+            message: err.message,
+            retryAfter: err.retryAfter,
+            requestId: err.requestId ?? 'web',
+          },
+        },
+        { status: err.status, headers },
       );
     }
+
+    if (err instanceof ApiUnavailableError) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'SERVICE_UNAVAILABLE',
+            message: err.message,
+            requestId: err.requestId ?? 'web',
+          },
+        },
+        {
+          status: 503,
+          headers: { 'Cache-Control': 'no-store, max-age=0' },
+        },
+      );
+    }
+
     return NextResponse.json(
-      { error: { message: 'Failed to load available seats' } },
-      { status: 500 },
+      {
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Сервіс тимчасово недоступний',
+          requestId: 'web',
+        },
+      },
+      {
+        status: 500,
+        headers: { 'Cache-Control': 'no-store, max-age=0' },
+      },
     );
   }
 }
-

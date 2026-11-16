@@ -50,7 +50,7 @@ export async function setFavoriteAction(input: {
   } catch {
     return {
       ok: false,
-      error: 'Could not update favorites. Changes were rolled back.',
+      error: 'Не вдалося оновити обране. Зміни скасовано.',
     };
   }
 }

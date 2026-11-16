@@ -1,8 +1,10 @@
 import { Suspense } from 'react';
 import { ListEventsQuerySchema, type ListEventsQuery } from '@app/shared';
 import { EventCard } from '@/components/event-card';
+import { InlineApiError } from '@/components/inline-api-error';
 import { EventsPagination, SearchFilters } from '@/components/search-filters';
 import { fetchCities, fetchEvents } from '@/lib/api';
+import { formatUserError } from '@/lib/api-errors';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,34 +44,39 @@ function ListSkeleton() {
 }
 
 async function EventsList({ query }: { query: ListEventsQuery }) {
-  const eventsResult = await fetchEvents(query, { cache: 'no-store' });
+  try {
+    const eventsResult = await fetchEvents(query, { cache: 'no-store' });
 
-  return (
-    <div className="space-y-4">
-      <EventsPagination
-        city={query.city ?? ''}
-        q={query.q ?? ''}
-        meta={eventsResult.meta}
-      />
+    return (
+      <div className="space-y-4">
+        <EventsPagination
+          city={query.city ?? ''}
+          q={query.q ?? ''}
+          meta={eventsResult.meta}
+        />
 
-      {eventsResult.data.length === 0 ? (
-        <div className="rounded-lg border border-slate-200 bg-white p-12 text-center">
-          <h2 className="text-base font-semibold text-slate-900">
-            No matching events found
-          </h2>
-          <p className="mt-1 text-sm text-slate-600">
-            Try clearing your search query or selecting a different city filter.
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {eventsResult.data.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
+        {eventsResult.data.length === 0 ? (
+          <div className="rounded-lg border border-slate-200 bg-white p-12 text-center">
+            <h2 className="text-base font-semibold text-slate-900">
+              No matching events found
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Try clearing your search query or selecting a different city filter.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {eventsResult.data.map((event) => (
+              <EventCard key={event.id} event={event} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  } catch (err: unknown) {
+    const formatted = formatUserError(err);
+    return <InlineApiError message={formatted.message} digest={formatted.digest} />;
+  }
 }
 
 export default async function HomePage({ searchParams }: HomePageProps) {
@@ -112,4 +119,3 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     </div>
   );
 }
-

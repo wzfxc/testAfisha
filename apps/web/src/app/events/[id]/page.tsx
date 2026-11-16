@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Calendar, MapPin, Pencil, Users } from 'lucide-react';
 import { FavoriteButton } from '@/components/favorite-button';
+import { SeatsErrorBoundary } from '@/components/seats-error-boundary';
 import { SeatsSection, SeatsSectionSkeleton } from '@/components/seats-section';
 import { Badge } from '@/components/ui/badge';
 import { fetchEventById, fetchEvents } from '@/lib/api';
@@ -127,9 +128,11 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
         </dl>
       </article>
 
-      <Suspense fallback={<SeatsSectionSkeleton />}>
-        <SeatsSection eventId={event.id} capacity={event.capacity} />
-      </Suspense>
+      <SeatsErrorBoundary>
+        <Suspense fallback={<SeatsSectionSkeleton />}>
+          <SeatsSection eventId={event.id} capacity={event.capacity} />
+        </Suspense>
+      </SeatsErrorBoundary>
     </div>
   );
 }

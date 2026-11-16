@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
+import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { CheckCircle2, AlertCircle, Loader2, Save } from 'lucide-react';
 import type { Event } from '@app/shared';
@@ -16,8 +17,29 @@ export interface EditEventFormProps {
 }
 
 const initialState: UpdateEventActionState = {
-  status: 'idle',
+  ok: null,
 };
+
+function SubmitButton({ disabled }: { disabled?: boolean }) {
+  const { pending } = useFormStatus();
+  const isDisabled = Boolean(disabled) || pending;
+
+  return (
+    <Button type="submit" variant="primary" disabled={isDisabled}>
+      {pending ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Збереження...</span>
+        </>
+      ) : (
+        <>
+          <Save className="h-4 w-4" />
+          <span>Save Changes</span>
+        </>
+      )}
+    </Button>
+  );
+}
 
 export function EditEventForm({ event }: EditEventFormProps) {
   const boundAction = updateEventAction.bind(null, event.id);
@@ -26,12 +48,23 @@ export function EditEventForm({ event }: EditEventFormProps) {
     initialState,
   );
 
+  const [title, setTitle] = useState(event.title);
+  const [description, setDescription] = useState(event.description);
+
+  const hasTitleError = Boolean(state.fieldErrors?.title?.length);
+  const hasDescriptionError = Boolean(state.fieldErrors?.description?.length);
+
   return (
     <form
       action={formAction}
+      onSubmit={(e) => {
+        if (isPending) {
+          e.preventDefault();
+        }
+      }}
       className="space-y-5 rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
     >
-      {state.status === 'success' ? (
+      {state.ok === true && state.message ? (
         <div
           role="status"
           className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-800"
@@ -41,13 +74,13 @@ export function EditEventForm({ event }: EditEventFormProps) {
         </div>
       ) : null}
 
-      {state.status === 'error' ? (
+      {state.ok === false && state.formError ? (
         <div
           role="alert"
           className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-800"
         >
           <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
-          <span>{state.message}</span>
+          <span>{state.formError}</span>
         </div>
       ) : null}
 
@@ -61,13 +94,18 @@ export function EditEventForm({ event }: EditEventFormProps) {
         <Input
           id="title"
           name="title"
-          defaultValue={event.title}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
           required
           maxLength={200}
-          disabled={isPending}
+          readOnly={isPending}
+          aria-invalid={hasTitleError || undefined}
+          aria-describedby={hasTitleError ? 'title-error' : undefined}
         />
         {state.fieldErrors?.title ? (
-          <p className="text-xs text-red-600">{state.fieldErrors.title[0]}</p>
+          <p id="title-error" className="text-xs text-red-600">
+            {state.fieldErrors.title[0]}
+          </p>
         ) : null}
       </div>
 
@@ -82,14 +120,17 @@ export function EditEventForm({ event }: EditEventFormProps) {
           id="description"
           name="description"
           rows={5}
-          defaultValue={event.description}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
           required
           maxLength={5000}
-          disabled={isPending}
-          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60"
+          readOnly={isPending}
+          aria-invalid={hasDescriptionError || undefined}
+          aria-describedby={hasDescriptionError ? 'description-error' : undefined}
+          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 aria-[invalid=true]:border-red-500"
         />
         {state.fieldErrors?.description ? (
-          <p className="text-xs text-red-600">
+          <p id="description-error" className="text-xs text-red-600">
             {state.fieldErrors.description[0]}
           </p>
         ) : null}
@@ -103,21 +144,8 @@ export function EditEventForm({ event }: EditEventFormProps) {
           Cancel
         </Link>
 
-        <Button type="submit" variant="primary" disabled={isPending}>
-          {isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Saving...</span>
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              <span>Save Changes</span>
-            </>
-          )}
-        </Button>
+        <SubmitButton disabled={isPending} />
       </div>
     </form>
   );
 }
-

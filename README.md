@@ -155,6 +155,18 @@ Inside Stage 2 (`builder`) of `apps/web/Dockerfile`, `@app/api` is built and sta
 - **`/favorites` Dynamic SSR:** `src/app/favorites/page.tsx` (`force-dynamic`) reads `cookies()` on the server and passes `initialEvents` directly into `<FavoritesList>`, rendering the saved cards immediately with zero empty flash.
 - **Zero Cache Leak Across Users:** Neither the static HTML / ISR cache of `/events/[id]` nor `fetchEventById` (`cache: 'force-cache'`) ever reads or embeds `afisha_favorites`, and `/api/favorites` sends `Cache-Control: no-store` so shared caches never store per-user favorites.
 
+### 8. Unified Error Handling, Timeouts & Resilience (`@app/shared`, `apps/api`, `apps/web`)
+- **Backend Error Contract (`ApiErrorResponseSchema`):** Every non-2xx API response flows through a centralized `errorHandler` and returns `{ error: { code, message, details?, requestId } }` alongside the `x-request-id` header (reused from incoming requests when valid or generated via `crypto.randomUUID()`).
+  - Status codes handled: `400 VALIDATION_ERROR` (Zod field `details`), `400 INVALID_JSON`, `404 NOT_FOUND`, `405 METHOD_NOT_ALLOWED` (with `Allow` header), `413 PAYLOAD_TOO_LARGE`, `415 UNSUPPORTED_MEDIA_TYPE`, `429 RATE_LIMITED` (with `Retry-After`), and `500 INTERNAL_ERROR` (stack traces logged server-side only, never leaked to clients).
+  - Unhandled promise rejections and uncaught exceptions are logged and trigger graceful server shutdown.
+- **Frontend Timeouts & Typed Mapping (`api.ts`, `api-errors.ts`):** All server-to-API fetches enforce `AbortSignal.timeout(API_TIMEOUT_MS)` (`5000ms` default) and forward `x-request-id`. Errors map into `ApiHttpError` (`status`, `code`, `details`, `retryAfter`, `requestId`) or `ApiUnavailableError` (`timeout` / `network`).
+- **UI Boundaries & Isolation:**
+  - `404` invokes `notFound()`.
+  - `429` displays `"Забагато запитів. Спробуйте через N с"` and `5xx`/network/timeout displays `"Сервіс тимчасово недоступний"` with a `"Спробувати ще"` retry button (`router.refresh()` + `reset()`).
+  - Route `error.tsx` boundaries (`/`, `/favorites`, `/events/[id]`, `/events/[id]/edit`) and `global-error.tsx` avoid raw `error.message` (masked in Next.js production), resolving user messages by `digest` while displaying `digest` in small muted text for log correlation.
+  - List errors on `/` and `/favorites` render `<InlineApiError>` inside `<Suspense>` so the header and filters remain operational; `/events/[id]` wraps live seats inside `<SeatsErrorBoundary>` and `SeatsPoller` applies `Retry-After` on `429` plus exponential backoff (5s→60s) on upstream errors while keeping existing chart samples.
+  - `/events/[id]/edit` validates with `UpdateEventBodySchema`, returns `{ ok: false, fieldErrors, formError, values }` from `updateEventAction` (never throws on 4xx/5xx, calls `notFound()` on 404), preserves user input in controlled fields, uses `useFormStatus()` to disable double-submits, and marks invalid inputs via `aria-invalid` / `aria-describedby`.
+
 ---
 
 ## 5. `next build` Output & Bundle Verification

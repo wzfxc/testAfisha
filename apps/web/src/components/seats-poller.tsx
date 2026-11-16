@@ -6,8 +6,8 @@ import { AlertCircle, RefreshCw, Ticket } from 'lucide-react';
 import type { SeatsInfo } from '@app/shared';
 import type { SeatHistoryPoint } from '@/components/seats-fill-chart';
 import { Badge } from '@/components/ui/badge';
+import { parseRetryAfterHeader } from '@/lib/api-errors';
 
-// CRITICAL: Lazy-load Recharts via next/dynamic so it is excluded from the main bundle
 const SeatsFillChart = dynamic(() => import('@/components/seats-fill-chart'), {
   ssr: false,
   loading: () => (
@@ -25,6 +25,8 @@ export interface SeatsPollerProps {
 }
 
 const POLL_INTERVAL_MS = 5_000;
+const MAX_BACKOFF_MS = 60_000;
+const CLIENT_POLL_TIMEOUT_MS = 5_000;
 const MAX_HISTORY_POINTS = 12;
 
 function formatTimeLabel(date: Date): string {
@@ -68,6 +70,7 @@ export function SeatsPoller({
     let isCancelled = false;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     let activeController: AbortController | null = null;
+    let consecutiveFailures = 0;
 
     const pollOnceThenScheduleNext = async () => {
       if (isCancelled) {
@@ -75,20 +78,44 @@ export function SeatsPoller({
       }
 
       activeController = new AbortController();
+      const timeoutSignal = AbortSignal.timeout(CLIENT_POLL_TIMEOUT_MS);
+      const signal = AbortSignal.any([activeController.signal, timeoutSignal]);
       setIsFetching(true);
+
+      let nextDelayMs = POLL_INTERVAL_MS;
 
       try {
         const res = await fetch(`/api/events/${eventId}/seats`, {
           cache: 'no-store',
-          signal: activeController.signal,
+          signal,
         });
 
         if (!res.ok) {
-          throw new Error(`Seats service returned HTTP ${res.status}`);
+          const payload = (await res.json().catch(() => null)) as {
+            error?: { retryAfter?: number };
+          } | null;
+
+          if (res.status === 429) {
+            const retrySeconds =
+              parseRetryAfterHeader(res.headers.get('retry-after')) ??
+              payload?.error?.retryAfter ??
+              60;
+            nextDelayMs = Math.max(POLL_INTERVAL_MS, retrySeconds * 1000);
+            throw new Error(`Забагато запитів. Спробуйте через ${retrySeconds} с`);
+          }
+
+          consecutiveFailures += 1;
+          nextDelayMs = Math.min(
+            MAX_BACKOFF_MS,
+            POLL_INTERVAL_MS * 2 ** consecutiveFailures,
+          );
+          throw new Error('Сервіс тимчасово недоступний');
         }
 
         const payload = (await res.json()) as { data: SeatsInfo };
         if (!isCancelled) {
+          consecutiveFailures = 0;
+          nextDelayMs = POLL_INTERVAL_MS;
           const snapshot = payload.data;
           setCurrentSeats(snapshot);
           setPollError(null);
@@ -98,26 +125,38 @@ export function SeatsPoller({
           ]);
         }
       } catch (err: unknown) {
-        if (err instanceof DOMException && err.name === 'AbortError') {
+        if (activeController.signal.aborted) {
           return;
         }
+        if (err instanceof DOMException && err.name === 'TimeoutError') {
+          consecutiveFailures += 1;
+          nextDelayMs = Math.min(
+            MAX_BACKOFF_MS,
+            POLL_INTERVAL_MS * 2 ** consecutiveFailures,
+          );
+        } else if (!(err instanceof Error && err.message.startsWith('Забагато запитів'))) {
+          consecutiveFailures += 1;
+          nextDelayMs = Math.min(
+            MAX_BACKOFF_MS,
+            POLL_INTERVAL_MS * 2 ** consecutiveFailures,
+          );
+        }
+
         if (!isCancelled) {
           setPollError(
             err instanceof Error
               ? err.message
-              : 'Temporary error polling available seats.',
+              : 'Сервіс тимчасово недоступний',
           );
         }
       } finally {
         if (!isCancelled) {
           setIsFetching(false);
-          // CRITICAL: Schedule the next 5s timer ONLY AFTER the previous request finishes
-          timeoutId = setTimeout(pollOnceThenScheduleNext, POLL_INTERVAL_MS);
+          timeoutId = setTimeout(pollOnceThenScheduleNext, nextDelayMs);
         }
       }
     };
 
-    // Poll immediately on mount when no initial snapshot is present, then every 5s after completion
     timeoutId = setTimeout(
       pollOnceThenScheduleNext,
       initialSeats ? POLL_INTERVAL_MS : 0,
@@ -165,11 +204,12 @@ export function SeatsPoller({
       </div>
 
       {pollError ? (
-        <div className="mt-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        <div
+          role="status"
+          className="mt-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+        >
           <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
-          <span>
-            {pollError} &mdash; Retrying automatically in 5 seconds.
-          </span>
+          <span>{pollError}</span>
         </div>
       ) : null}
 
@@ -226,4 +266,3 @@ export function SeatsPoller({
     </div>
   );
 }
-

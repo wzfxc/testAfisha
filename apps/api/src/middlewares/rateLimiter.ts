@@ -1,4 +1,5 @@
 import type { Request, RequestHandler, Response } from 'express';
+import { RateLimitError } from '../lib/errors.js';
 
 export interface RateLimiterOptions {
   windowMs: number;
@@ -68,13 +69,7 @@ export function createRateLimiter(options: RateLimiterOptions): RequestHandler {
     res.set('RateLimit-Reset', String(resetSeconds));
 
     if (bucket.count > limit) {
-      res.set('Retry-After', String(resetSeconds));
-      res.status(429).json({
-        error: {
-          code: 'RATE_LIMITED',
-          message: 'Too many requests, please try again later.',
-        },
-      });
+      next(new RateLimitError('Too many requests, please try again later.', resetSeconds));
       return;
     }
 

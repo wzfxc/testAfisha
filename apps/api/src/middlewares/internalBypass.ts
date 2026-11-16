@@ -8,6 +8,7 @@ export const CLIENT_IP_HEADER = 'x-client-ip';
 declare global {
   namespace Express {
     interface Locals {
+      requestId?: string;
       isInternalRequest?: boolean;
       clientIp?: string | undefined;
     }

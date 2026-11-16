@@ -1,15 +1,24 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { notFound } from 'next/navigation';
 import { EventIdParamsSchema, UpdateEventBodySchema } from '@app/shared';
 import { ApiHttpError, patchEvent } from '@/lib/api';
+import { formatUserError } from '@/lib/api-errors';
+
+export interface EditFieldErrors {
+  title?: string[];
+  description?: string[];
+}
 
 export interface UpdateEventActionState {
-  status: 'idle' | 'success' | 'error';
+  ok: boolean | null;
   message?: string;
-  fieldErrors?: {
-    title?: string[];
-    description?: string[];
+  formError?: string;
+  fieldErrors?: EditFieldErrors;
+  values?: {
+    title: string;
+    description: string;
   };
 }
 
@@ -18,21 +27,28 @@ export async function updateEventAction(
   _prevState: UpdateEventActionState,
   formData: FormData,
 ): Promise<UpdateEventActionState> {
-  const idParsed = EventIdParamsSchema.safeParse({ id: eventId });
-  if (!idParsed.success) {
-    return { status: 'error', message: 'Invalid event ID.' };
-  }
-
   const rawTitle = formData.get('title');
   const rawDescription = formData.get('description');
+  const title = typeof rawTitle === 'string' ? rawTitle : '';
+  const description = typeof rawDescription === 'string' ? rawDescription : '';
+  const values = { title, description };
+
+  const idParsed = EventIdParamsSchema.safeParse({ id: eventId });
+  if (!idParsed.success) {
+    return {
+      ok: false,
+      formError: 'Некоректний ідентифікатор події.',
+      values,
+    };
+  }
 
   const bodyParsed = UpdateEventBodySchema.safeParse({
-    title: typeof rawTitle === 'string' ? rawTitle : undefined,
-    description: typeof rawDescription === 'string' ? rawDescription : undefined,
+    title,
+    description,
   });
 
   if (!bodyParsed.success) {
-    const fieldErrors: { title?: string[]; description?: string[] } = {};
+    const fieldErrors: EditFieldErrors = {};
     for (const issue of bodyParsed.error.issues) {
       const field = issue.path[0];
       if (field === 'title' || field === 'description') {
@@ -40,33 +56,58 @@ export async function updateEventAction(
       }
     }
     return {
-      status: 'error',
-      message: bodyParsed.error.issues[0]?.message ?? 'Please check the form fields.',
+      ok: false,
+      formError:
+        bodyParsed.error.issues[0]?.message ?? 'Перевірте правильність заповнення полів.',
       fieldErrors,
+      values,
     };
   }
 
   try {
-    await patchEvent(idParsed.data.id, bodyParsed.data);
+    const updated = await patchEvent(idParsed.data.id, bodyParsed.data);
 
-    // Instantly invalidate cached RSC payloads across Home, Event Details, Edit, and Favorites
     revalidatePath('/');
     revalidatePath(`/events/${idParsed.data.id}`);
     revalidatePath(`/events/${idParsed.data.id}/edit`);
     revalidatePath('/favorites');
 
     return {
-      status: 'success',
-      message: 'Event details updated successfully.',
+      ok: true,
+      message: 'Зміни успішно збережено.',
+      values: {
+        title: updated.title,
+        description: updated.description,
+      },
     };
   } catch (err: unknown) {
-    if (err instanceof ApiHttpError) {
-      return { status: 'error', message: err.message };
+    if (err instanceof ApiHttpError && err.status === 404) {
+      notFound();
     }
+
+    if (err instanceof ApiHttpError && err.status === 400 && err.details) {
+      const fieldErrors: EditFieldErrors = {};
+      for (const detail of err.details) {
+        if (detail.field === 'title' || detail.field === 'description') {
+          fieldErrors[detail.field] = [
+            ...(fieldErrors[detail.field] ?? []),
+            detail.message,
+          ];
+        }
+      }
+      return {
+        ok: false,
+        formError: err.message,
+        ...(Object.keys(fieldErrors).length > 0 ? { fieldErrors } : {}),
+        values,
+      };
+    }
+
+    const formatted = formatUserError(err);
     return {
-      status: 'error',
-      message: 'Unexpected error while saving event changes.',
+      ok: false,
+      formError: formatted.message,
+      values,
     };
   }
 }
-

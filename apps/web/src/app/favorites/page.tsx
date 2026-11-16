@@ -2,7 +2,9 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import type { Event } from '@app/shared';
 import { FavoritesList } from '@/components/favorites-list';
+import { InlineApiError } from '@/components/inline-api-error';
 import { fetchEventById } from '@/lib/api';
+import { formatUserError } from '@/lib/api-errors';
 import { getFavoriteIdsFromCookie } from '@/lib/favorites-cookie';
 
 export const dynamic = 'force-dynamic';
@@ -34,15 +36,20 @@ function FavoritesSkeleton() {
 async function FavoritesContent() {
   const favoriteIds = await getFavoriteIdsFromCookie();
 
-  const eventsOrNull = await Promise.all(
-    favoriteIds.map((id) => fetchEventById(id).catch(() => null)),
-  );
+  try {
+    const eventsOrNull = await Promise.all(
+      favoriteIds.map((id) => fetchEventById(id)),
+    );
 
-  const favoriteEvents = eventsOrNull
-    .filter((event): event is Event => event !== null)
-    .sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+    const favoriteEvents = eventsOrNull
+      .filter((event): event is Event => event !== null)
+      .sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
 
-  return <FavoritesList initialEvents={favoriteEvents} />;
+    return <FavoritesList initialEvents={favoriteEvents} />;
+  } catch (err: unknown) {
+    const formatted = formatUserError(err);
+    return <InlineApiError message={formatted.message} digest={formatted.digest} />;
+  }
 }
 
 export default function FavoritesPage() {

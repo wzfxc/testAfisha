@@ -1,6 +1,24 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 const API_BASE_URL = process.env.API_URL ?? 'http://localhost:4000';
+const DEFAULT_API_TIMEOUT_MS = 5_000;
+const REQUEST_ID_PATTERN = /^[A-Za-z0-9._-]{1,128}$/;
+
+function getApiTimeoutMs(): number {
+  const raw = Number(process.env.API_TIMEOUT_MS);
+  if (Number.isFinite(raw) && raw > 0) {
+    return raw;
+  }
+  return DEFAULT_API_TIMEOUT_MS;
+}
+
+function getOrCreateRequestId(req: NextRequest): string {
+  const raw = req.headers.get('x-request-id')?.trim();
+  if (raw && REQUEST_ID_PATTERN.test(raw)) {
+    return raw;
+  }
+  return crypto.randomUUID();
+}
 
 function isValidIpString(ip: string): boolean {
   const ipv4Regex =
@@ -28,7 +46,7 @@ function extractClientIpFromRequest(req: NextRequest): string {
 
 function renderRateLimitHtml(retryAfter: string): string {
   return `<!DOCTYPE html>
-<html lang="en" class="light" style="color-scheme: light;">
+<html lang="uk" class="light" style="color-scheme: light;">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -46,9 +64,9 @@ function renderRateLimitHtml(retryAfter: string): string {
 <body>
   <div class="card" role="alert">
     <span class="badge">HTTP 429 &middot; Rate Limit Exceeded</span>
-    <h1>Too many requests</h1>
-    <p>You have exceeded the request rate limit for your IP address. Please wait ${retryAfter} seconds before refreshing.</p>
-    <a href="/">Try again</a>
+    <h1>Забагато запитів</h1>
+    <p>Забагато запитів. Спробуйте через ${retryAfter} с</p>
+    <a href="/">Спробувати ще</a>
   </div>
 </body>
 </html>`;
@@ -60,15 +78,20 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
   sanitizedHeaders.delete('x-client-ip');
   sanitizedHeaders.delete('x-internal-secret');
 
+  const requestId = getOrCreateRequestId(req);
+  sanitizedHeaders.set('x-request-id', requestId);
+
   const secret = process.env.INTERNAL_SECRET?.trim();
   const clientIp = extractClientIpFromRequest(req);
 
   try {
     const checkRes = await fetch(`${API_BASE_URL}/rate-limit`, {
       method: 'GET',
+      signal: AbortSignal.timeout(getApiTimeoutMs()),
       headers: {
         ...(secret ? { 'x-internal-secret': secret } : {}),
         'x-client-ip': clientIp,
+        'x-request-id': requestId,
       },
       cache: 'no-store',
     });
@@ -84,6 +107,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
         'Content-Type': isRscRequest ? 'text/plain; charset=utf-8' : 'text/html; charset=utf-8',
         'Cache-Control': 'no-store, max-age=0',
         'Retry-After': retryAfter,
+        'x-request-id': requestId,
       });
       if (limitHeader) headers.set('RateLimit-Limit', limitHeader);
       if (remainingHeader) headers.set('RateLimit-Remaining', remainingHeader);
@@ -93,7 +117,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
         req.method === 'HEAD'
           ? null
           : isRscRequest
-            ? 'Too many requests'
+            ? `Забагато запитів. Спробуйте через ${retryAfter} с`
             : renderRateLimitHtml(retryAfter);
 
       return new NextResponse(body, {
@@ -110,17 +134,20 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
       },
     });
 
+    response.headers.set('x-request-id', requestId);
     if (limitHeader) response.headers.set('RateLimit-Limit', limitHeader);
     if (remainingHeader) response.headers.set('RateLimit-Remaining', remainingHeader);
     if (resetHeader) response.headers.set('RateLimit-Reset', resetHeader);
 
     return response;
   } catch {
-    return NextResponse.next({
+    const response = NextResponse.next({
       request: {
         headers: sanitizedHeaders,
       },
     });
+    response.headers.set('x-request-id', requestId);
+    return response;
   }
 }
 

@@ -1,9 +1,10 @@
 import cors from 'cors';
 import express, { type Express } from 'express';
 import type { AppConfig } from './config/index.js';
-import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
+import { errorHandler, methodNotAllowed, notFoundHandler } from './middlewares/errorHandler.js';
 import { internalBypass } from './middlewares/internalBypass.js';
 import { createRateLimiter } from './middlewares/rateLimiter.js';
+import { requestIdMiddleware } from './middlewares/requestId.js';
 import { createApiRoutes } from './routes/index.js';
 import type { EventService } from './services/eventService.js';
 
@@ -16,6 +17,7 @@ export function createApp({ config, eventService }: AppDependencies): Express {
   const app = express();
 
   app.disable('x-powered-by');
+  app.use(requestIdMiddleware);
 
   if (config.trustProxyHops > 0) {
     app.set('trust proxy', config.trustProxyHops);
@@ -31,7 +33,9 @@ export function createApp({ config, eventService }: AppDependencies): Express {
           'x-internal-secret',
           'x-client-ip',
           'x-rate-limit-counted',
+          'x-request-id',
         ],
+        exposedHeaders: ['x-request-id'],
       }),
     );
   }
@@ -41,6 +45,7 @@ export function createApp({ config, eventService }: AppDependencies): Express {
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' });
   });
+  app.all('/health', methodNotAllowed('GET, HEAD'));
 
   app.use(internalBypass(config.internalSecret));
   app.use(createRateLimiter(config.rateLimit));
@@ -48,6 +53,7 @@ export function createApp({ config, eventService }: AppDependencies): Express {
   app.get('/rate-limit', (_req, res) => {
     res.status(204).end();
   });
+  app.all('/rate-limit', methodNotAllowed('GET, HEAD'));
 
   const apiRoutes = createApiRoutes(eventService);
   app.use(apiRoutes);

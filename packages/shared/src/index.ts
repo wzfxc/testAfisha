@@ -17,8 +17,11 @@ export type EventRecord = Event;
 
 const optionalText = z.preprocess((val) => {
   const raw = Array.isArray(val) ? val[0] : val;
-  if (typeof raw !== 'string') {
+  if (raw === undefined || raw === null) {
     return undefined;
+  }
+  if (typeof raw !== 'string') {
+    return raw;
   }
   const trimmed = raw.trim();
   if (trimmed === '' || trimmed === 'undefined' || trimmed === 'null') {
@@ -27,23 +30,27 @@ const optionalText = z.preprocess((val) => {
   return trimmed;
 }, z.string().max(100).optional());
 
+const positivePage = z.preprocess((val) => {
+  const raw = Array.isArray(val) ? val[0] : val;
+  if (raw === undefined || raw === null || raw === '') {
+    return 1;
+  }
+  return typeof raw === 'string' ? Number(raw) : raw;
+}, z.number().int().min(1));
+
+const boundedLimit = z.preprocess((val) => {
+  const raw = Array.isArray(val) ? val[0] : val;
+  if (raw === undefined || raw === null || raw === '') {
+    return 12;
+  }
+  return typeof raw === 'string' ? Number(raw) : raw;
+}, z.number().int().min(1).max(50));
+
 export const ListEventsQuerySchema = z.object({
   city: optionalText,
   q: optionalText,
-  page: z.preprocess((val) => {
-    const raw = Array.isArray(val) ? val[0] : val;
-    if (raw === undefined || raw === null || raw === '') {
-      return 1;
-    }
-    return raw;
-  }, z.coerce.number().int().min(1).catch(1)),
-  limit: z.preprocess((val) => {
-    const raw = Array.isArray(val) ? val[0] : val;
-    if (raw === undefined || raw === null || raw === '') {
-      return 12;
-    }
-    return raw;
-  }, z.coerce.number().int().min(1).max(50).catch(12)),
+  page: positivePage,
+  limit: boundedLimit,
 });
 
 export type ListEventsQuery = z.infer<typeof ListEventsQuerySchema>;
@@ -97,3 +104,25 @@ export const SeatsInfoSchema = z.object({
 });
 
 export type SeatsInfo = z.infer<typeof SeatsInfoSchema>;
+
+export const ErrorDetailSchema = z.object({
+  field: z.string(),
+  message: z.string(),
+});
+
+export type ErrorDetail = z.infer<typeof ErrorDetailSchema>;
+
+export const ApiErrorBodySchema = z.object({
+  code: z.string(),
+  message: z.string(),
+  details: z.array(ErrorDetailSchema).optional(),
+  requestId: z.string(),
+});
+
+export type ApiErrorBody = z.infer<typeof ApiErrorBodySchema>;
+
+export const ApiErrorResponseSchema = z.object({
+  error: ApiErrorBodySchema,
+});
+
+export type ApiErrorResponse = z.infer<typeof ApiErrorResponseSchema>;

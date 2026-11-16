@@ -8,13 +8,19 @@ import { SeatsErrorBoundary } from '@/components/seats-error-boundary';
 import { SeatsSection, SeatsSectionSkeleton } from '@/components/seats-section';
 import { Badge } from '@/components/ui/badge';
 import { fetchEventById, fetchEvents } from '@/lib/api';
+import { collectNearestUpcoming } from '@/lib/nearest-events';
 import { formatEventDate, truncateText } from '@/lib/utils';
 
 export const dynamicParams = true;
 
 export async function generateStaticParams(): Promise<Array<{ id: string }>> {
-  const nearest = await fetchEvents({ page: 1, limit: 15 }, { cache: 'force-cache', includeClientIp: false });
-  return nearest.data.map((event) => ({ id: String(event.id) }));
+  // Pre-render the 15 nearest *upcoming* events relative to build time.
+  // Past events are skipped; if fewer than 15 are upcoming, all of them are pre-rendered.
+  const nearest = await collectNearestUpcoming(
+    (page, limit) => fetchEvents({ page, limit }, { cache: 'force-cache', includeClientIp: false }),
+    Date.now(),
+  );
+  return nearest.map((event) => ({ id: String(event.id) }));
 }
 
 interface EventDetailPageProps {

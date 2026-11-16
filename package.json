@@ -10,5 +10,10 @@
     "build:web": "pnpm --filter @app/web build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

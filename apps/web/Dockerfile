@@ -16,7 +16,7 @@ COPY apps/web/package.json ./apps/web/package.json
 RUN pnpm install --frozen-lockfile
 
 # ==============================================================================
-# Stage 2: Build @app/shared, @app/api, and @app/web (with ephemeral API server)
+# Stage 2: Build @app/api and @app/web (with ephemeral background API server)
 # ==============================================================================
 FROM deps AS builder
 WORKDIR /workspace
@@ -25,9 +25,8 @@ COPY packages/shared ./packages/shared
 COPY apps/api ./apps/api
 COPY apps/web ./apps/web
 
-# 1. Build shared schemas and the backend API
-RUN pnpm --filter @app/shared build \
- && pnpm --filter @app/api build
+# 1. Bundle the backend API
+RUN pnpm --filter @app/api build
 
 # 2. Spin up the compiled API server in the background during `next build` so
 #    `generateStaticParams` can fetch and pre-render the 15 nearest events,
@@ -82,4 +81,3 @@ USER nextjs
 EXPOSE 3000
 
 CMD ["node", "apps/web/server.js"]
-

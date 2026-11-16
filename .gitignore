@@ -1,5 +1,40 @@
-node_modules
-dist
-.next
-.env
+# Dependencies
+node_modules/
+**/node_modules/
+.pnpm-store/
 
+# Build & compilation artifacts
+dist/
+**/dist/
+build/
+**/build/
+out/
+**/out/
+.next/
+**/.next/
+*.tsbuildinfo
+
+# Environment variables & secrets (keep *.env.example tracked)
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Logs & testing
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+coverage/
+**/coverage/
+
+# OS & editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -86,7 +86,7 @@ describe('Afisha Server API', () => {
     // CRITICAL: Slow DB must have been queried EXACTLY ONCE
     assert.equal(ctx.store.queryCount, 1);
 
-    // Subsequent warm-cache request must be instantaneous (< 50ms, no 300-800ms delay)
+    // Subsequent warm-cache request must be instantaneous (< 100ms, no 300-800ms delay)
     const startWarm = performance.now();
     const warmRes = await fetch(`${baseUrl}/events?page=1&limit=10`);
     const elapsedWarm = performance.now() - startWarm;
@@ -140,7 +140,7 @@ describe('Afisha Server API', () => {
     assert.equal(afterList.data[0]?.id, 1);
   });
 
-  it('returns uncached random seats immediately without DB delay and 404 for unknown event', async () => {
+  it('returns uncached random seats immediately without DB delay and 404 for unknown or non-numeric event IDs', async () => {
     ctx = await startTestServer();
     const { baseUrl } = ctx;
 
@@ -157,8 +157,14 @@ describe('Afisha Server API', () => {
     assert.equal(body.data.eventId, 1);
     assert.ok(body.data.availableSeats >= 0 && body.data.availableSeats <= body.data.capacity);
 
-    const missing = await fetch(`${baseUrl}/events/9999/seats`);
-    assert.equal(missing.status, 404);
+    const missingSeats = await fetch(`${baseUrl}/events/9999/seats`);
+    assert.equal(missingSeats.status, 404);
+
+    const missingEvent = await fetch(`${baseUrl}/events/9999`, { method: 'HEAD' });
+    assert.equal(missingEvent.status, 404);
+
+    const nonNumericEvent = await fetch(`${baseUrl}/events/abc`, { method: 'HEAD' });
+    assert.equal(nonNumericEvent.status, 404);
   });
 
   it('validates inputs with Zod (400) and bypasses rate limiter with x-internal-secret', async () => {

@@ -16,17 +16,15 @@ COPY apps/web/package.json ./apps/web/package.json
 RUN pnpm install --frozen-lockfile
 
 # ==============================================================================
-# Stage 2: Build @app/shared and @app/api, then prune production dependencies
+# Stage 2: Bundle @app/api (inlining @app/shared) and prune production deps
 # ==============================================================================
 FROM deps AS builder
 WORKDIR /workspace
 
-COPY tsconfig.json* ./
 COPY packages/shared ./packages/shared
 COPY apps/api ./apps/api
 
-RUN pnpm --filter @app/shared build \
- && pnpm --filter @app/api build \
+RUN pnpm --filter @app/api build \
  && pnpm --filter @app/api --prod deploy --legacy /prod/api
 
 # ==============================================================================
@@ -48,4 +46,3 @@ USER node
 EXPOSE 4000
 
 CMD ["node", "dist/server.js"]
-

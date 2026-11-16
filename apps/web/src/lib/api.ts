@@ -86,8 +86,13 @@ const SingleEventResponseSchema = z.object({
   data: EventSchema,
 });
 
-export async function fetchEventById(id: number): Promise<Event | null> {
-  const res = await internalFetch(`/events/${id}`);
+export async function fetchEventById(
+  id: number,
+  options: { cache?: RequestCache } = { cache: 'force-cache' },
+): Promise<Event | null> {
+  const res = await internalFetch(`/events/${id}`, {
+    cache: options.cache ?? 'force-cache',
+  });
 
   if (res.status === 404) {
     return null;

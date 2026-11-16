@@ -37,7 +37,7 @@ export async function updateEventAction(
   if (!idParsed.success) {
     return {
       ok: false,
-      formError: 'Некоректний ідентифікатор події.',
+      formError: 'Invalid event ID.',
       values,
     };
   }
@@ -58,7 +58,7 @@ export async function updateEventAction(
     return {
       ok: false,
       formError:
-        bodyParsed.error.issues[0]?.message ?? 'Перевірте правильність заповнення полів.',
+        bodyParsed.error.issues[0]?.message ?? 'Please check the form fields.',
       fieldErrors,
       values,
     };
@@ -74,7 +74,7 @@ export async function updateEventAction(
 
     return {
       ok: true,
-      message: 'Зміни успішно збережено.',
+      message: 'Event details updated successfully.',
       values: {
         title: updated.title,
         description: updated.description,

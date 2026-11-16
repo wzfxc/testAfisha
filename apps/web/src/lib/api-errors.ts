@@ -22,7 +22,7 @@ export class ApiUnavailableError extends Error {
 
   constructor(
     public readonly reason: 'timeout' | 'network',
-    message = 'Сервіс тимчасово недоступний',
+    message = 'Service temporarily unavailable',
     public readonly requestId?: string,
   ) {
     super(message);
@@ -84,7 +84,7 @@ export function formatUserError(err: unknown): FormattedUserError {
     if (err.status === 404) {
       return {
         kind: 'not_found',
-        message: 'Подію не знайдено',
+        message: 'Event not found',
         digest: 'NOT_FOUND',
       };
     }
@@ -92,7 +92,7 @@ export function formatUserError(err: unknown): FormattedUserError {
       const waitSeconds = err.retryAfter ?? 60;
       return {
         kind: 'rate_limited',
-        message: `Забагато запитів. Спробуйте через ${waitSeconds} с`,
+        message: `Too many requests. Please try again in ${waitSeconds}s.`,
         retryAfter: waitSeconds,
         digest: `RATE_LIMITED:${waitSeconds}`,
       };
@@ -100,13 +100,13 @@ export function formatUserError(err: unknown): FormattedUserError {
     if (err.status === 400 || err.status === 422) {
       return {
         kind: 'validation',
-        message: err.message || 'Перевірте коректність введених даних',
+        message: err.message || 'Please check the form fields.',
         digest: `HTTP_${err.status}`,
       };
     }
     return {
       kind: 'unavailable',
-      message: 'Сервіс тимчасово недоступний',
+      message: 'Service temporarily unavailable',
       digest: `HTTP_${err.status}`,
     };
   }
@@ -114,14 +114,14 @@ export function formatUserError(err: unknown): FormattedUserError {
   if (err instanceof ApiUnavailableError) {
     return {
       kind: 'unavailable',
-      message: 'Сервіс тимчасово недоступний',
+      message: 'Service temporarily unavailable',
       digest: 'SERVICE_UNAVAILABLE',
     };
   }
 
   return {
     kind: 'unavailable',
-    message: 'Сервіс тимчасово недоступний',
+    message: 'Service temporarily unavailable',
     digest: 'SERVICE_UNAVAILABLE',
   };
 }
@@ -134,14 +134,13 @@ export function getErrorMessageFromDigest(digest: string | undefined): {
     const rawSeconds = Number(digest.slice('RATE_LIMITED:'.length));
     const seconds = Number.isFinite(rawSeconds) && rawSeconds > 0 ? Math.ceil(rawSeconds) : 60;
     return {
-      message: `Забагато запитів. Спробуйте через ${seconds} с`,
+      message: `Too many requests. Please try again in ${seconds}s.`,
       isRateLimit: true,
     };
   }
 
   return {
-    message: 'Сервіс тимчасово недоступний',
+    message: 'Service temporarily unavailable',
     isRateLimit: false,
   };
 }
-

@@ -20,7 +20,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="uk" className="light" style={{ colorScheme: 'light' }}>
+    <html lang="en" className="light" style={{ colorScheme: 'light' }}>
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
         <main className="mx-auto flex min-h-screen max-w-lg items-center justify-center px-4">
           <div
@@ -28,7 +28,7 @@ export default function GlobalError({
             className="w-full rounded-lg border border-red-200 bg-white p-6 text-center shadow-sm"
           >
             <h1 className="text-base font-semibold text-slate-900">
-              Критична помилка застосунку
+              Application error
             </h1>
             <p className="mt-1.5 text-sm text-slate-600">{message}</p>
             {error.digest ? (
@@ -45,7 +45,7 @@ export default function GlobalError({
                 }}
                 className="inline-flex h-9 items-center justify-center rounded-md bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700"
               >
-                Спробувати ще
+                Try again
               </button>
             </div>
           </div>
@@ -54,4 +54,3 @@ export default function GlobalError({
     </html>
   );
 }
-

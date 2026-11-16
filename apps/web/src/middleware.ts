@@ -46,7 +46,7 @@ function extractClientIpFromRequest(req: NextRequest): string {
 
 function renderRateLimitHtml(retryAfter: string): string {
   return `<!DOCTYPE html>
-<html lang="uk" class="light" style="color-scheme: light;">
+<html lang="en" class="light" style="color-scheme: light;">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -64,9 +64,9 @@ function renderRateLimitHtml(retryAfter: string): string {
 <body>
   <div class="card" role="alert">
     <span class="badge">HTTP 429 &middot; Rate Limit Exceeded</span>
-    <h1>Забагато запитів</h1>
-    <p>Забагато запитів. Спробуйте через ${retryAfter} с</p>
-    <a href="/">Спробувати ще</a>
+    <h1>Too many requests</h1>
+    <p>Too many requests. Please try again in ${retryAfter}s.</p>
+    <a href="/">Try again</a>
   </div>
 </body>
 </html>`;
@@ -117,7 +117,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
         req.method === 'HEAD'
           ? null
           : isRscRequest
-            ? `Забагато запитів. Спробуйте через ${retryAfter} с`
+            ? `Too many requests. Please try again in ${retryAfter}s.`
             : renderRateLimitHtml(retryAfter);
 
       return new NextResponse(body, {

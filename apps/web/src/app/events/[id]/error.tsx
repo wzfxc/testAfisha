@@ -13,7 +13,7 @@ export default function EventDetailError({
     <RouteErrorCard
       error={error}
       reset={reset}
-      title="Не вдалося завантажити подію"
+      title="Unable to load event details"
       showBackHome
     />
   );

@@ -101,7 +101,7 @@ export function SeatsPoller({
               payload?.error?.retryAfter ??
               60;
             nextDelayMs = Math.max(POLL_INTERVAL_MS, retrySeconds * 1000);
-            throw new Error(`Забагато запитів. Спробуйте через ${retrySeconds} с`);
+            throw new Error(`Too many requests. Please try again in ${retrySeconds}s.`);
           }
 
           consecutiveFailures += 1;
@@ -109,7 +109,7 @@ export function SeatsPoller({
             MAX_BACKOFF_MS,
             POLL_INTERVAL_MS * 2 ** consecutiveFailures,
           );
-          throw new Error('Сервіс тимчасово недоступний');
+          throw new Error('Service temporarily unavailable');
         }
 
         const payload = (await res.json()) as { data: SeatsInfo };
@@ -134,7 +134,7 @@ export function SeatsPoller({
             MAX_BACKOFF_MS,
             POLL_INTERVAL_MS * 2 ** consecutiveFailures,
           );
-        } else if (!(err instanceof Error && err.message.startsWith('Забагато запитів'))) {
+        } else if (!(err instanceof Error && err.message.startsWith('Too many requests'))) {
           consecutiveFailures += 1;
           nextDelayMs = Math.min(
             MAX_BACKOFF_MS,
@@ -146,7 +146,7 @@ export function SeatsPoller({
           setPollError(
             err instanceof Error
               ? err.message
-              : 'Сервіс тимчасово недоступний',
+              : 'Service temporarily unavailable',
           );
         }
       } finally {

@@ -13,7 +13,7 @@ export default function HomeError({
     <RouteErrorCard
       error={error}
       reset={reset}
-      title="Не вдалося завантажити афішу"
+      title="Unable to load events"
     />
   );
 }

@@ -70,7 +70,7 @@ export async function GET(
       {
         error: {
           code: 'INTERNAL_ERROR',
-          message: 'Сервіс тимчасово недоступний',
+          message: 'Service temporarily unavailable',
           requestId: 'web',
         },
       },

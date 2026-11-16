@@ -13,7 +13,7 @@ export default function EditEventError({
     <RouteErrorCard
       error={error}
       reset={reset}
-      title="Не вдалося завантажити форму редагування"
+      title="Unable to load event editor"
       showBackHome
     />
   );

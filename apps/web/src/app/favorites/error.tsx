@@ -13,7 +13,7 @@ export default function FavoritesError({
     <RouteErrorCard
       error={error}
       reset={reset}
-      title="Не вдалося завантажити обране"
+      title="Unable to load favorites"
       showBackHome
     />
   );

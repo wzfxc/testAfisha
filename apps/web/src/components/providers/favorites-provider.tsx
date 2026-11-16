@@ -146,7 +146,7 @@ export function FavoritesProvider({
 
         writeQueueRef.current = task.catch(() => {
           desiredMapRef.current.delete(eventId);
-          setToastError('Не вдалося зберегти обране. Зміни скасовано.');
+          setToastError('Could not save favorite. Changes were rolled back.');
         });
 
         await writeQueueRef.current;

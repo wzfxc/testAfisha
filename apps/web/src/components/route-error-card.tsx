@@ -17,7 +17,7 @@ export interface RouteErrorCardProps {
 export function RouteErrorCard({
   error,
   reset,
-  title = 'Помилка завантаження сторінки',
+  title = 'Unable to load page',
   showBackHome = false,
 }: RouteErrorCardProps) {
   const router = useRouter();
@@ -56,7 +56,7 @@ export function RouteErrorCard({
       <div className="mt-5 flex items-center justify-center gap-3">
         <Button variant="primary" onClick={handleRetry} disabled={isRetrying}>
           <RotateCcw className="h-4 w-4" />
-          <span>Спробувати ще</span>
+          <span>Try again</span>
         </Button>
         {showBackHome ? (
           <Link
@@ -64,11 +64,10 @@ export function RouteErrorCard({
             prefetch={false}
             className="inline-flex h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
-            На головну
+            Back to events
           </Link>
         ) : null}
       </div>
     </div>
   );
 }
-

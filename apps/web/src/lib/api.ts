@@ -114,7 +114,7 @@ async function internalFetch(path: string, options: InternalFetchOptions = {}): 
   } catch (err: unknown) {
     throw new ApiUnavailableError(
       isTimeoutError(err) ? 'timeout' : 'network',
-      'Сервіс тимчасово недоступний',
+      'Service temporarily unavailable',
       resolvedRequestId,
     );
   }

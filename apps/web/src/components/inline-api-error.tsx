@@ -29,7 +29,7 @@ export function InlineApiError({ message, digest }: InlineApiErrorProps) {
         <AlertTriangle className="h-5 w-5" />
       </div>
       <h2 className="text-base font-semibold text-slate-900">
-        Не вдалося завантажити дані
+        Unable to load data
       </h2>
       <p className="mt-1.5 text-sm text-slate-600">{message}</p>
       {digest ? (
@@ -40,7 +40,7 @@ export function InlineApiError({ message, digest }: InlineApiErrorProps) {
       <div className="mt-5 flex justify-center">
         <Button variant="primary" onClick={handleRetry} disabled={isRetrying}>
           <RotateCcw className="h-4 w-4" />
-          <span>Спробувати ще</span>
+          <span>Try again</span>
         </Button>
       </div>
     </div>

@@ -40,10 +40,10 @@ export class SeatsErrorBoundary extends Component<
             <AlertTriangle className="h-5 w-5" />
           </div>
           <h2 className="text-base font-semibold text-slate-900">
-            Блок вільних місць тимчасово недоступний
+            Live seat availability is unavailable
           </h2>
           <p className="mt-1.5 text-sm text-slate-600">
-            Сервіс тимчасово недоступний
+            Service temporarily unavailable
           </p>
           <div className="mt-4 flex justify-center">
             <Button
@@ -51,7 +51,7 @@ export class SeatsErrorBoundary extends Component<
               onClick={() => this.setState({ hasError: false })}
             >
               <RotateCcw className="h-4 w-4" />
-              <span>Спробувати ще</span>
+              <span>Try again</span>
             </Button>
           </div>
         </div>

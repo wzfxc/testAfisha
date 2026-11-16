@@ -48,18 +48,21 @@ test('api error mapping: maps 404, 429 with retry-after, 5xx, timeout, and netwo
   const err429 = new ApiHttpError(429, 'RATE_LIMITED', 'Slow down', undefined, 17);
   const mapped429 = formatUserError(err429);
   assert.equal(mapped429.kind, 'rate_limited');
-  assert.equal(mapped429.message, 'Забагато запитів. Спробуйте через 17 с');
-  assert.equal(getErrorMessageFromDigest(mapped429.digest).message, 'Забагато запитів. Спробуйте через 17 с');
+  assert.equal(mapped429.message, 'Too many requests. Please try again in 17s.');
+  assert.equal(
+    getErrorMessageFromDigest(mapped429.digest).message,
+    'Too many requests. Please try again in 17s.',
+  );
 
   const err500 = new ApiHttpError(500, 'INTERNAL_ERROR', 'Internal server error');
   assert.equal(formatUserError(err500).kind, 'unavailable');
-  assert.equal(formatUserError(err500).message, 'Сервіс тимчасово недоступний');
+  assert.equal(formatUserError(err500).message, 'Service temporarily unavailable');
 
   const errTimeout = new ApiUnavailableError('timeout');
-  assert.equal(formatUserError(errTimeout).message, 'Сервіс тимчасово недоступний');
+  assert.equal(formatUserError(errTimeout).message, 'Service temporarily unavailable');
 
   const errNetwork = new ApiUnavailableError('network');
-  assert.equal(formatUserError(errNetwork).message, 'Сервіс тимчасово недоступний');
+  assert.equal(formatUserError(errNetwork).message, 'Service temporarily unavailable');
 });
 
 test('buildHref: omits empty q and page=1 while preserving active filters and pages > 1', () => {

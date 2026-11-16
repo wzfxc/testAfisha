@@ -34,10 +34,11 @@ export function createEventController(service: EventService) {
       res.set('Cache-Control', 'no-store').json({ data: service.seats(id) });
     },
 
-    update(req: Request, res: Response): void {
+    async update(req: Request, res: Response): Promise<void> {
       const id = parseEventIdOrNotFound(req.params);
       const body = UpdateEventBodySchema.parse(req.body);
-      res.json({ data: service.update(id, body) });
+      const updated = await service.update(id, body);
+      res.json({ data: updated });
     },
   };
 }

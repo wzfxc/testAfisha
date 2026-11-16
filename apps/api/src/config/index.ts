@@ -16,6 +16,8 @@ const envSchema = z.object({
   DB_MIN_DELAY_MS: z.coerce.number().int().min(0).default(300),
   DB_MAX_DELAY_MS: z.coerce.number().int().min(0).default(800),
   SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+  DATA_FILE: z.preprocess(emptyToUndefined, z.string().trim().min(1).optional()),
+  SEED_FILE: z.preprocess(emptyToUndefined, z.string().trim().min(1).optional()),
 });
 
 export interface AppConfig {
@@ -28,6 +30,8 @@ export interface AppConfig {
   cache: { ttlMs: number; maxEntries: number };
   db: { minDelayMs: number; maxDelayMs: number };
   shutdownTimeoutMs: number;
+  dataFile: string | undefined;
+  seedFile: string | undefined;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -53,5 +57,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     cache: { ttlMs: e.CACHE_TTL_MS, maxEntries: e.CACHE_MAX_ENTRIES },
     db: { minDelayMs: e.DB_MIN_DELAY_MS, maxDelayMs: e.DB_MAX_DELAY_MS },
     shutdownTimeoutMs: e.SHUTDOWN_TIMEOUT_MS,
+    dataFile: e.DATA_FILE,
+    seedFile: e.SEED_FILE,
   };
 }

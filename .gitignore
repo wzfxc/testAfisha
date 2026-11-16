@@ -33,6 +33,11 @@ yarn-error.log*
 coverage/
 **/coverage/
 
+# Runtime event data copy (seeded from events.seed.json on startup)
+apps/api/data/events.json
+apps/api/data/.*.tmp
+*.tmp
+
 # OS & editor files
 .DS_Store
 Thumbs.db

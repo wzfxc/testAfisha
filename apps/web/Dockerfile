@@ -30,6 +30,7 @@ RUN set -eu; \
     PORT=4000 \
     NODE_ENV=production \
     INTERNAL_SECRET="${INTERNAL_SECRET}" \
+    DATA_FILE="/tmp/build-events.json" \
     DB_MIN_DELAY_MS=10 \
     DB_MAX_DELAY_MS=20 \
     node apps/api/dist/server.js & \

@@ -4,7 +4,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const OUT = fileURLToPath(new URL('../data/events.json', import.meta.url));
+const OUT = fileURLToPath(new URL('../data/events.seed.json', import.meta.url));
 
 const venuesByCity = {
   Kyiv: ['Palace of Sports', 'Atlas Hall', 'Stereo Plaza'],

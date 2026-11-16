@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync } from 'node:fs';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, describe, it } from 'node:test';
 import type { Event, PaginatedEvents, SeatsInfo } from '@app/shared';
 import { createApp } from '../src/app.js';
@@ -9,15 +12,19 @@ import { sleep } from '../src/lib/delay.js';
 import { EventService } from '../src/services/eventService.js';
 import { EventStore } from '../src/services/eventStore.js';
 
-const DATA_FILE = new URL('../data/events.json', import.meta.url);
+const SEED_FILE = new URL('../data/events.seed.json', import.meta.url);
 
 interface TestContext {
   baseUrl: string;
   store: EventStore;
+  runtimeFile: string;
   close: () => Promise<void>;
 }
 
 async function startTestServer(overrides?: Partial<AppConfig>): Promise<TestContext> {
+  const tempDir = mkdtempSync(join(tmpdir(), 'afisha-api-test-'));
+  const runtimeFile = join(tempDir, 'events.json');
+
   const config: AppConfig = {
     nodeEnv: 'test',
     port: 0,
@@ -28,11 +35,13 @@ async function startTestServer(overrides?: Partial<AppConfig>): Promise<TestCont
     cache: { ttlMs: 60_000, maxEntries: 500 },
     db: { minDelayMs: 300, maxDelayMs: 400 },
     shutdownTimeoutMs: 5_000,
+    dataFile: runtimeFile,
+    seedFile: undefined,
     ...overrides,
   };
 
   const store = new EventStore(config.db);
-  await store.load(DATA_FILE);
+  await store.load(runtimeFile, SEED_FILE);
 
   const eventService = new EventService(store, {
     max: config.cache.maxEntries,
@@ -51,9 +60,14 @@ async function startTestServer(overrides?: Partial<AppConfig>): Promise<TestCont
   return {
     baseUrl,
     store,
+    runtimeFile,
     close: () =>
       new Promise<void>((resolve, reject) => {
-        server.close((err) => (err ? reject(err) : resolve()));
+        server.close((err) => {
+          rmSync(tempDir, { recursive: true, force: true });
+          if (err) reject(err);
+          else resolve();
+        });
       }),
   };
 }

@@ -144,6 +144,11 @@ Inside Stage 2 (`builder`) of `apps/web/Dockerfile`, `@app/api` is built and sta
 - All filter transitions on `/` — debounced search input (`300ms`), city dropdown selection (`handleCityChange`), pagination controls (`EventsPagination`), and filter reset (`handleReset`) — use `startTransition(() => router.replace(href, { scroll: false }))` with zero full-page reloads.
 - While typing or while a transition is in flight (`isTypingRef.current || isPending`), local `<Input>` state is the single source of truth so stale responses never overwrite user input. When idle, external navigation (`window.next.router.replace` or browser Back/Forward `popstate`) cleanly synchronizes `query` and `city` with the URL.
 
+### 6. Persistent Event Storage & Atomic Writes (`apps/api/src/services/eventStore.ts`)
+- **Seed vs Runtime Separation:** The immutable 60-event seed lives in git at `apps/api/data/events.seed.json`. On startup, if the writable runtime file (`DATA_FILE`, defaulting to `apps/api/data/events.json` locally or `/app/runtime-data/events.json` in Docker on named volume `api_data`) does not exist yet, `api` seeds it atomically from `events.seed.json` and uses it for all subsequent reads and writes.
+- **Atomic & Serialized `PATCH` Writes:** All `update()` calls are serialized via an in-memory promise mutex so concurrent `PATCH` requests never clobber each other, writing to a same-directory temp file followed by `fs.rename()`. In-memory state and caches are updated only **after** `fs.rename()` succeeds; any disk error returns `500` while keeping memory and cache consistent. `SIGTERM` waits for active requests and pending file writes before exiting.
+- **Resetting Data in Docker:** Because runtime state is stored in the `api_data` named volume, `docker compose restart api` preserves edits, whereas `docker compose down -v` wipes the volume and resets data back to `events.seed.json`.
+
 ---
 
 ## 5. `next build` Output & Bundle Verification

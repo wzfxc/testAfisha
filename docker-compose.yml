@@ -20,6 +20,10 @@ services:
       DB_MIN_DELAY_MS: ${DB_MIN_DELAY_MS:-300}
       DB_MAX_DELAY_MS: ${DB_MAX_DELAY_MS:-800}
       SHUTDOWN_TIMEOUT_MS: 10000
+      DATA_FILE: /app/runtime-data/events.json
+      SEED_FILE: /app/data/events.seed.json
+    volumes:
+      - api_data:/app/runtime-data
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/health"]
       interval: 10s
@@ -57,3 +61,6 @@ services:
       - "3000:3000"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  api_data:

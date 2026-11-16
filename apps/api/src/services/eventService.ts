@@ -82,8 +82,8 @@ export class EventService {
     };
   }
 
-  update(id: number, patch: UpdateEventBody): Event {
-    const updated = this.store.update(id, patch);
+  async update(id: number, patch: UpdateEventBody): Promise<Event> {
+    const updated = await this.store.update(id, patch);
     if (!updated) {
       throw new NotFoundError(`Event ${id} not found`);
     }

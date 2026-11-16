@@ -41,6 +41,8 @@ COPY --from=builder --chown=node:node /prod/api/node_modules ./node_modules
 COPY --from=builder --chown=node:node /workspace/apps/api/dist ./dist
 COPY --from=builder --chown=node:node /workspace/apps/api/data ./data
 
+RUN mkdir -p /app/runtime-data && chown node:node /app/runtime-data
+
 USER node
 
 EXPOSE 4000

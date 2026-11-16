@@ -1,4 +1,6 @@
 import 'server-only';
+import { isIP } from 'node:net';
+import { headers } from 'next/headers';
 import {
   EventSchema,
   PaginatedEventsSchema,
@@ -11,7 +13,45 @@ import {
 import { z } from 'zod';
 
 const API_BASE_URL = process.env.API_URL ?? 'http://localhost:4000';
-const INTERNAL_SECRET = process.env.INTERNAL_SECRET ?? 'super-secret-internal-ssr-key';
+
+function getInternalSecret(): string | undefined {
+  const secret = process.env.INTERNAL_SECRET?.trim() || undefined;
+  if (process.env.NODE_ENV === 'production' && !secret) {
+    throw new Error('INTERNAL_SECRET environment variable is required in production');
+  }
+  return secret;
+}
+
+export async function getClientIp(): Promise<string | undefined> {
+  try {
+    const hdrs = await headers();
+    const xff = hdrs.get('x-forwarded-for');
+    if (xff) {
+      const first = xff.split(',')[0]?.trim();
+      if (first && isIP(first) !== 0) {
+        return first;
+      }
+    }
+
+    const xRealIp = hdrs.get('x-real-ip')?.trim();
+    if (xRealIp && isIP(xRealIp) !== 0) {
+      return xRealIp;
+    }
+
+    return '127.0.0.1';
+  } catch {
+    return undefined;
+  }
+}
+
+async function isRateLimitAlreadyCounted(): Promise<boolean> {
+  try {
+    const hdrs = await headers();
+    return hdrs.get('x-rate-limit-counted') === '1';
+  } catch {
+    return false;
+  }
+}
 
 export class ApiHttpError extends Error {
   constructor(
@@ -25,18 +65,24 @@ export class ApiHttpError extends Error {
 
 interface InternalFetchOptions extends Omit<RequestInit, 'headers'> {
   headers?: Record<string, string>;
+  clientIp?: string | undefined;
+  rateLimitCounted?: boolean | undefined;
 }
 
 async function internalFetch(path: string, options: InternalFetchOptions = {}): Promise<Response> {
+  const secret = getInternalSecret();
   const url = `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+  const { clientIp, rateLimitCounted, headers: customHeaders, ...rest } = options;
 
   return fetch(url, {
-    ...options,
+    ...rest,
     headers: {
       Accept: 'application/json',
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(INTERNAL_SECRET ? { 'x-internal-secret': INTERNAL_SECRET } : {}),
-      ...options.headers,
+      ...(rest.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(secret ? { 'x-internal-secret': secret } : {}),
+      ...(clientIp ? { 'x-client-ip': clientIp } : {}),
+      ...(rateLimitCounted ? { 'x-rate-limit-counted': '1' } : {}),
+      ...customHeaders,
     },
   });
 }
@@ -48,9 +94,14 @@ export interface FetchEventsParams {
   limit?: number | undefined;
 }
 
+export interface FetchEventsOptions {
+  cache?: RequestCache;
+  includeClientIp?: boolean;
+}
+
 export async function fetchEvents(
   params: FetchEventsParams = {},
-  options: { cache?: RequestCache } = { cache: 'no-store' },
+  options: FetchEventsOptions = { cache: 'no-store', includeClientIp: true },
 ): Promise<PaginatedEvents> {
   const search = new URLSearchParams();
   const cleanCity = params.city?.trim();
@@ -69,9 +120,17 @@ export async function fetchEvents(
     search.set('limit', String(params.limit));
   }
 
+  const cacheMode = options.cache ?? 'no-store';
+  const shouldIncludeIp = options.includeClientIp !== false && cacheMode !== 'force-cache';
+  const [clientIp, rateLimitCounted] = shouldIncludeIp
+    ? await Promise.all([getClientIp(), isRateLimitAlreadyCounted()])
+    : [undefined, false];
+
   const qs = search.toString();
   const res = await internalFetch(`/events${qs ? `?${qs}` : ''}`, {
-    cache: options.cache ?? 'no-store',
+    cache: cacheMode,
+    clientIp,
+    rateLimitCounted,
   });
 
   if (!res.ok) {
@@ -111,8 +170,14 @@ const CitiesResponseSchema = z.object({
 });
 
 export async function fetchCities(): Promise<string[]> {
+  const [clientIp, rateLimitCounted] = await Promise.all([
+    getClientIp(),
+    isRateLimitAlreadyCounted(),
+  ]);
   const res = await internalFetch('/cities', {
     cache: 'no-store',
+    clientIp,
+    rateLimitCounted,
   });
 
   if (!res.ok) {
@@ -131,7 +196,11 @@ export async function fetchEventSeats(
   id: number,
   options: { cache?: RequestCache } = { cache: 'no-store' },
 ): Promise<SeatsInfo> {
-  const res = await internalFetch(`/events/${id}/seats`, options);
+  const clientIp = await getClientIp();
+  const res = await internalFetch(`/events/${id}/seats`, {
+    ...options,
+    clientIp,
+  });
 
   if (!res.ok) {
     throw new ApiHttpError(res.status, `Failed to fetch seats for event #${id} (${res.status})`);
@@ -142,10 +211,12 @@ export async function fetchEventSeats(
 }
 
 export async function patchEvent(id: number, body: UpdateEventBody): Promise<Event> {
+  const clientIp = await getClientIp();
   const res = await internalFetch(`/events/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
     cache: 'no-store',
+    clientIp,
   });
 
   if (!res.ok) {

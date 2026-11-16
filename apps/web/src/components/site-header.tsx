@@ -9,6 +9,7 @@ export function SiteHeader() {
         <div className="flex items-center gap-6">
           <Link
             href="/"
+            prefetch={false}
             className="flex items-center gap-2 text-base font-semibold tracking-tight text-slate-900"
           >
             <CalendarDays className="h-5 w-5 text-blue-600" />
@@ -18,6 +19,7 @@ export function SiteHeader() {
           <nav className="hidden items-center gap-4 text-sm font-medium text-slate-600 sm:flex">
             <Link
               href="/"
+              prefetch={false}
               className="rounded px-2 py-1 transition-colors hover:bg-slate-100 hover:text-slate-900"
             >
               All Events
@@ -30,4 +32,3 @@ export function SiteHeader() {
     </header>
   );
 }
-

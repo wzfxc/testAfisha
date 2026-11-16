@@ -5,9 +5,6 @@ import type { NextConfig } from 'next';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// On Windows without Developer Mode / elevated privileges, `fs.promises.symlink`
-// throws EPERM when Next.js `output: 'standalone'` copies pnpm symlinks.
-// Falling back to directory junctions allows `next build` to succeed on Windows.
 if (process.platform === 'win32') {
   const originalSymlink = fs.promises.symlink.bind(fs.promises);
   fs.promises.symlink = async (target, linkPath, type) => {

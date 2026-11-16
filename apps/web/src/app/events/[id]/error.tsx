@@ -4,6 +4,13 @@ import Link from 'next/link';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+function getFriendlyErrorMessage(rawMessage: string | undefined): string {
+  if (!rawMessage || rawMessage.includes('Server Components render')) {
+    return 'Could not load event details right now. Please wait a moment and retry.';
+  }
+  return rawMessage;
+}
+
 export default function EventDetailError({
   error,
   reset,
@@ -20,7 +27,7 @@ export default function EventDetailError({
         Could not load event details
       </h2>
       <p className="mt-1.5 text-sm text-slate-600">
-        {error.message || 'An unexpected error occurred while fetching this event.'}
+        {getFriendlyErrorMessage(error.message)}
       </p>
       <div className="mt-5 flex items-center justify-center gap-3">
         <Button variant="primary" onClick={reset}>
@@ -29,6 +36,7 @@ export default function EventDetailError({
         </Button>
         <Link
           href="/"
+          prefetch={false}
           className="inline-flex h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
           Back to events
@@ -37,4 +45,3 @@ export default function EventDetailError({
     </div>
   );
 }
-

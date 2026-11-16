@@ -17,6 +17,7 @@ import { setFavoriteAction } from '@/app/actions/favorites';
 interface FavoritesContextValue {
   favoriteIds: number[];
   favoritesCount: number;
+  isHydrated: boolean;
   isFavorite: (eventId: number) => boolean;
   toggleFavorite: (eventId: number) => void;
 }
@@ -33,36 +34,35 @@ export interface FavoritesProviderProps {
   children: ReactNode;
 }
 
-/**
- * Global Favorites Provider powered by React 19 `useOptimistic`.
- *
- * Hydrates initial state from the HTTP-only cookie via `/api/favorites` on mount
- * (keeping the root layout static-friendly so `/events/[id]` can use `generateStaticParams`),
- * and performs all mutations through the `setFavoriteAction` Server Action.
- */
 export function FavoritesProvider({
   initialFavoriteIds,
   children,
 }: FavoritesProviderProps) {
   const [committedIds, setCommittedIds] = useState<number[]>(initialFavoriteIds);
+  const [isHydrated, setIsHydrated] = useState<boolean>(initialFavoriteIds.length > 0);
   const [toastError, setToastError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  // Hydrate initial favorite IDs from the server's HTTP-only cookie
+  const desiredMapRef = useRef<Map<number, boolean>>(new Map());
+  const seqMapRef = useRef<Map<number, number>>(new Map());
+  const writeQueueRef = useRef<Promise<void>>(Promise.resolve());
+
   useEffect(() => {
     let active = true;
     fetch('/api/favorites', { cache: 'no-store' })
       .then((res) => (res.ok ? (res.json() as Promise<{ favoriteIds: number[] }>) : null))
       .then((data) => {
         if (active && data && Array.isArray(data.favoriteIds)) {
-          // Only hydrate if user hasn't already clicked a favorite button before fetch resolved
           if (desiredMapRef.current.size === 0) {
             setCommittedIds(data.favoriteIds);
           }
+          setIsHydrated(true);
         }
       })
       .catch(() => {
-        // Ignore initial hydration errors
+        if (active) {
+          setIsHydrated(true);
+        }
       });
     return () => {
       active = false;
@@ -82,13 +82,6 @@ export function FavoritesProvider({
     return [...next];
   });
 
-  // Tracks the latest user-intended boolean per eventId across rapid synchronous clicks
-  const desiredMapRef = useRef<Map<number, boolean>>(new Map());
-  // Monotonic sequence per eventId to coalesce rapid clicks so only the final state commits
-  const seqMapRef = useRef<Map<number, number>>(new Map());
-  // Serializes cookie writes so concurrent Server Actions never race each other on Set-Cookie
-  const writeQueueRef = useRef<Promise<void>>(Promise.resolve());
-
   const isFavorite = useCallback(
     (eventId: number): boolean => optimisticIds.includes(eventId),
     [optimisticIds],
@@ -96,6 +89,7 @@ export function FavoritesProvider({
 
   const toggleFavorite = useCallback(
     (eventId: number): void => {
+      setIsHydrated(true);
       const currentDesired =
         desiredMapRef.current.get(eventId) ?? committedIds.includes(eventId);
       const nextDesired = !currentDesired;
@@ -107,12 +101,9 @@ export function FavoritesProvider({
       setToastError(null);
 
       startTransition(async () => {
-        // 1. Apply instant optimistic UI update (updates both card heart & Header badge)
         applyOptimistic({ eventId, isFavorite: nextDesired });
 
-        // 2. Enqueue the server cookie mutation in strict order
         const task = writeQueueRef.current.then(async () => {
-          // If a newer click on the same event already happened, skip intermediate network call
           if (seqMapRef.current.get(eventId) !== nextSeq) {
             return;
           }
@@ -123,7 +114,6 @@ export function FavoritesProvider({
             isFavorite: targetState,
           });
 
-          // Only apply the server response if no newer click superseded this one
           if (seqMapRef.current.get(eventId) === nextSeq) {
             desiredMapRef.current.delete(eventId);
             if (result.ok) {
@@ -150,6 +140,7 @@ export function FavoritesProvider({
       value={{
         favoriteIds: optimisticIds,
         favoritesCount: optimisticIds.length,
+        isHydrated,
         isFavorite,
         toggleFavorite,
       }}

@@ -1,8 +1,3 @@
-# syntax=docker/dockerfile:1
-
-# ==============================================================================
-# Stage 1: Install monorepo dependencies
-# ==============================================================================
 FROM node:22-alpine AS deps
 WORKDIR /workspace
 
@@ -15,9 +10,6 @@ COPY apps/web/package.json ./apps/web/package.json
 
 RUN pnpm install --frozen-lockfile
 
-# ==============================================================================
-# Stage 2: Build @app/api and @app/web (with ephemeral background API server)
-# ==============================================================================
 FROM deps AS builder
 WORKDIR /workspace
 
@@ -25,16 +17,16 @@ COPY packages/shared ./packages/shared
 COPY apps/api ./apps/api
 COPY apps/web ./apps/web
 
-# 1. Bundle the backend API
 RUN pnpm --filter @app/api build
 
-# 2. Spin up the compiled API server in the background during `next build` so
-#    `generateStaticParams` can fetch and pre-render the 15 nearest events,
-#    then gracefully stop the temporary API server via SIGTERM.
-ARG INTERNAL_SECRET=build-time-internal-secret
+ARG INTERNAL_SECRET
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN set -eu; \
+    if [ -z "${INTERNAL_SECRET:-}" ]; then \
+      echo "ERROR: INTERNAL_SECRET build arg is required" >&2; \
+      exit 1; \
+    fi; \
     PORT=4000 \
     NODE_ENV=production \
     INTERNAL_SECRET="${INTERNAL_SECRET}" \
@@ -42,10 +34,8 @@ RUN set -eu; \
     DB_MAX_DELAY_MS=20 \
     node apps/api/dist/server.js & \
     API_PID=$!; \
-    echo "[build] Waiting for temporary API server (PID ${API_PID}) on 127.0.0.1:4000..."; \
     for i in $(seq 1 50); do \
       if wget -qO- http://127.0.0.1:4000/health >/dev/null 2>&1; then \
-        echo "[build] Temporary API server is healthy."; \
         break; \
       fi; \
       sleep 0.2; \
@@ -54,13 +44,9 @@ RUN set -eu; \
     API_URL="http://127.0.0.1:4000" \
     INTERNAL_SECRET="${INTERNAL_SECRET}" \
     pnpm --filter @app/web build; \
-    echo "[build] Stopping temporary API server (PID ${API_PID})..."; \
     kill -TERM "${API_PID}" 2>/dev/null || true; \
     wait "${API_PID}" 2>/dev/null || true
 
-# ==============================================================================
-# Stage 3: Production Next.js standalone runner (non-root user)
-# ==============================================================================
 FROM node:22-alpine AS runner
 WORKDIR /app
 

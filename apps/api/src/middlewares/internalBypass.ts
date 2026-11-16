@@ -1,23 +1,19 @@
 import { timingSafeEqual } from 'node:crypto';
+import { isIP } from 'node:net';
 import type { RequestHandler } from 'express';
 
 export const INTERNAL_SECRET_HEADER = 'x-internal-secret';
+export const CLIENT_IP_HEADER = 'x-client-ip';
 
 declare global {
-  // Typed `res.locals` so we never need `any`.
-  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Locals {
       isInternalRequest?: boolean;
+      clientIp?: string | undefined;
     }
   }
 }
 
-/**
- * Flags requests that carry the correct shared secret (sent by the Next.js
- * server during SSR/pre-rendering) so the rate limiter can skip them.
- * If no secret is configured the bypass is disabled entirely.
- */
 export function internalBypass(secret: string | undefined): RequestHandler {
   const expected = secret === undefined ? undefined : Buffer.from(secret);
 
@@ -27,12 +23,19 @@ export function internalBypass(secret: string | undefined): RequestHandler {
 
     if (expected !== undefined && provided !== undefined) {
       const candidate = Buffer.from(provided);
-      // timingSafeEqual throws on length mismatch, so compare lengths first.
       internal = candidate.length === expected.length && timingSafeEqual(candidate, expected);
     }
 
+    let validClientIp: string | undefined;
+    if (internal) {
+      const rawClientIp = req.get(CLIENT_IP_HEADER)?.trim();
+      if (rawClientIp && isIP(rawClientIp) !== 0) {
+        validClientIp = rawClientIp;
+      }
+    }
+
     res.locals.isInternalRequest = internal;
+    res.locals.clientIp = validClientIp;
     next();
   };
 }
-

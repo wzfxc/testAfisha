@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import type { Event } from '@app/shared';
 import { FavoritesList } from '@/components/favorites-list';
@@ -6,7 +7,31 @@ import { getFavoriteIdsFromCookie } from '@/lib/favorites-cookie';
 
 export const dynamic = 'force-dynamic';
 
-export default async function FavoritesPage() {
+function FavoritesSkeleton() {
+  return (
+    <div
+      className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+      aria-busy="true"
+      aria-label="Loading favorites"
+    >
+      {Array.from({ length: 3 }).map((_, idx) => (
+        <div
+          key={idx}
+          className="flex h-64 flex-col justify-between rounded-lg border border-slate-200 bg-white p-5"
+        >
+          <div className="space-y-3">
+            <div className="h-5 w-20 animate-pulse rounded bg-slate-200" />
+            <div className="h-6 w-3/4 animate-pulse rounded bg-slate-200" />
+            <div className="h-4 w-full animate-pulse rounded bg-slate-100" />
+          </div>
+          <div className="h-8 w-full animate-pulse rounded bg-slate-100" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+async function FavoritesContent() {
   const favoriteIds = await getFavoriteIdsFromCookie();
 
   const eventsOrNull = await Promise.all(
@@ -17,6 +42,10 @@ export default async function FavoritesPage() {
     .filter((event): event is Event => event !== null)
     .sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
 
+  return <FavoritesList initialEvents={favoriteEvents} />;
+}
+
+export default function FavoritesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between border-b border-slate-200 pb-4">
@@ -36,7 +65,9 @@ export default async function FavoritesPage() {
         </Link>
       </div>
 
-      <FavoritesList initialEvents={favoriteEvents} />
+      <Suspense fallback={<FavoritesSkeleton />}>
+        <FavoritesContent />
+      </Suspense>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { z } from 'zod';
 
 export const FAVORITES_COOKIE_NAME = 'afisha_favorites';
-const FAVORITES_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
+const FAVORITES_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 const FavoriteIdsSchema = z.array(z.number().int().positive());
 
@@ -34,10 +34,9 @@ export async function setFavoriteIdsInCookie(ids: number[]): Promise<number[]> {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.COOKIE_SECURE === 'true',
     maxAge: FAVORITES_MAX_AGE_SECONDS,
   });
 
   return uniqueIds;
 }
-

@@ -1,14 +1,14 @@
 import { z } from 'zod';
 
-/** Treat empty strings (e.g. `INTERNAL_SECRET=`) as "not set". */
-const emptyToUndefined = (value: unknown): unknown => (value === '' ? undefined : value);
+const emptyToUndefined = (value: unknown): unknown =>
+  typeof value === 'string' && value.trim() === '' ? undefined : value;
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().int().min(0).max(65535).default(4000),
-  INTERNAL_SECRET: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  INTERNAL_SECRET: z.preprocess(emptyToUndefined, z.string().trim().min(1).optional()),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
-  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
   CORS_ORIGINS: z.string().default(''),
   CACHE_TTL_MS: z.coerce.number().int().positive().default(60_000),
@@ -21,7 +21,6 @@ const envSchema = z.object({
 export interface AppConfig {
   nodeEnv: 'development' | 'production' | 'test';
   port: number;
-  /** When undefined, the internal rate-limit bypass is disabled. */
   internalSecret: string | undefined;
   rateLimit: { windowMs: number; max: number };
   trustProxyHops: number;
@@ -33,6 +32,10 @@ export interface AppConfig {
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const e = envSchema.parse(env);
+
+  if (e.NODE_ENV === 'production' && !e.INTERNAL_SECRET) {
+    throw new Error('INTERNAL_SECRET environment variable is required in production');
+  }
 
   if (e.DB_MIN_DELAY_MS > e.DB_MAX_DELAY_MS) {
     throw new Error('DB_MIN_DELAY_MS must be <= DB_MAX_DELAY_MS');
@@ -52,4 +55,3 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     shutdownTimeoutMs: e.SHUTDOWN_TIMEOUT_MS,
   };
 }
-

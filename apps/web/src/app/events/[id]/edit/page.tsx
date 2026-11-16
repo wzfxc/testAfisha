@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { EventIdParamsSchema } from '@app/shared';
 import { EditEventForm } from '@/components/edit-event-form';
 import { fetchEventById } from '@/lib/api';
 
@@ -10,14 +9,16 @@ interface EditEventPageProps {
 }
 
 export default async function EditEventPage({ params }: EditEventPageProps) {
-  const rawParams = await params;
-  const parsed = EventIdParamsSchema.safeParse(rawParams);
-
-  if (!parsed.success) {
+  const { id: rawId } = await params;
+  if (!/^\d+$/.test(rawId)) {
+    notFound();
+  }
+  const id = Number(rawId);
+  if (!Number.isSafeInteger(id) || id <= 0) {
     notFound();
   }
 
-  const event = await fetchEventById(parsed.data.id);
+  const event = await fetchEventById(id);
   if (!event) {
     notFound();
   }
@@ -27,6 +28,7 @@ export default async function EditEventPage({ params }: EditEventPageProps) {
       <div className="flex items-center justify-between">
         <Link
           href={`/events/${event.id}`}
+          prefetch={false}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -47,4 +49,3 @@ export default async function EditEventPage({ params }: EditEventPageProps) {
     </div>
   );
 }
-

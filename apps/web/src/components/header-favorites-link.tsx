@@ -10,6 +10,7 @@ export function HeaderFavoritesLink() {
   return (
     <Link
       href="/favorites"
+      prefetch={false}
       className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900"
     >
       <Heart
@@ -29,4 +30,3 @@ export function HeaderFavoritesLink() {
     </Link>
   );
 }
-

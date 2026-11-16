@@ -1,16 +1,18 @@
 import { Suspense } from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Calendar, MapPin, Pencil, Users } from 'lucide-react';
-import { EventIdParamsSchema } from '@app/shared';
 import { FavoriteButton } from '@/components/favorite-button';
 import { SeatsSection, SeatsSectionSkeleton } from '@/components/seats-section';
 import { Badge } from '@/components/ui/badge';
 import { fetchEventById, fetchEvents } from '@/lib/api';
 import { formatEventDate } from '@/lib/utils';
 
+export const dynamicParams = true;
+
 export async function generateStaticParams(): Promise<Array<{ id: string }>> {
-  const nearest = await fetchEvents({ page: 1, limit: 15 }, { cache: 'force-cache' });
+  const nearest = await fetchEvents({ page: 1, limit: 15 }, { cache: 'force-cache', includeClientIp: false });
   return nearest.data.map((event) => ({ id: String(event.id) }));
 }
 
@@ -18,15 +20,37 @@ interface EventDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function EventDetailPage({ params }: EventDetailPageProps) {
-  const rawParams = await params;
-  const parsed = EventIdParamsSchema.safeParse(rawParams);
+function parseStrictNumericId(rawId: string): number {
+  if (!/^\d+$/.test(rawId)) {
+    notFound();
+  }
+  const id = Number(rawId);
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    notFound();
+  }
+  return id;
+}
 
-  if (!parsed.success) {
+export async function generateMetadata({ params }: EventDetailPageProps): Promise<Metadata> {
+  const { id: rawId } = await params;
+  const id = parseStrictNumericId(rawId);
+  const event = await fetchEventById(id);
+
+  if (!event) {
     notFound();
   }
 
-  const event = await fetchEventById(parsed.data.id);
+  return {
+    title: `${event.title} | Afisha Events`,
+    description: event.description,
+  };
+}
+
+export default async function EventDetailPage({ params }: EventDetailPageProps) {
+  const { id: rawId } = await params;
+  const id = parseStrictNumericId(rawId);
+
+  const event = await fetchEventById(id);
   if (!event) {
     notFound();
   }
@@ -36,6 +60,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
       <div className="flex items-center justify-between">
         <Link
           href="/"
+          prefetch={false}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -46,6 +71,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
           <FavoriteButton eventId={event.id} showLabel />
           <Link
             href={`/events/${event.id}/edit`}
+            prefetch={false}
             className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
             <Pencil className="h-3.5 w-3.5" />

@@ -5,6 +5,7 @@ import { afterEach, describe, it } from 'node:test';
 import type { Event, PaginatedEvents, SeatsInfo } from '@app/shared';
 import { createApp } from '../src/app.js';
 import type { AppConfig } from '../src/config/index.js';
+import { sleep } from '../src/lib/delay.js';
 import { EventService } from '../src/services/eventService.js';
 import { EventStore } from '../src/services/eventStore.js';
 
@@ -21,7 +22,7 @@ async function startTestServer(overrides?: Partial<AppConfig>): Promise<TestCont
     nodeEnv: 'test',
     port: 0,
     internalSecret: 'test-ssr-secret',
-    rateLimit: { windowMs: 60_000, max: 100 },
+    rateLimit: { windowMs: 60_000, max: 60 },
     trustProxyHops: 0,
     corsOrigins: [],
     cache: { ttlMs: 60_000, maxEntries: 500 },
@@ -74,7 +75,6 @@ describe('Afisha Server API', () => {
 
     const { baseUrl } = ctx;
 
-    // Fire 50 identical requests simultaneously against a cold cache
     const responses = await Promise.all(
       Array.from({ length: 50 }, () => fetch(`${baseUrl}/events?page=1&limit=10`)),
     );
@@ -83,10 +83,8 @@ describe('Afisha Server API', () => {
       assert.equal(res.status, 200);
     }
 
-    // CRITICAL: Slow DB must have been queried EXACTLY ONCE
     assert.equal(ctx.store.queryCount, 1);
 
-    // Subsequent warm-cache request must be instantaneous (< 100ms, no 300-800ms delay)
     const startWarm = performance.now();
     const warmRes = await fetch(`${baseUrl}/events?page=1&limit=10`);
     const elapsedWarm = performance.now() - startWarm;
@@ -100,7 +98,6 @@ describe('Afisha Server API', () => {
     assert.equal(body.data.length, 10);
     assert.equal(body.meta.total, 60);
 
-    // Verify ascending date sort
     for (let i = 1; i < body.data.length; i++) {
       const prev = Date.parse(body.data[i - 1]!.date);
       const curr = Date.parse(body.data[i]!.date);
@@ -112,12 +109,10 @@ describe('Afisha Server API', () => {
     ctx = await startTestServer();
     const { baseUrl } = ctx;
 
-    // Prime both caches
     await fetch(`${baseUrl}/events/1`);
     await fetch(`${baseUrl}/events?page=1`);
     assert.equal(ctx.store.queryCount, 2);
 
-    // Patch event #1
     const patchRes = await fetch(`${baseUrl}/events/1`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -127,7 +122,6 @@ describe('Afisha Server API', () => {
     const patched = (await patchRes.json()) as { data: Event };
     assert.equal(patched.data.title, 'Updated Headline Event');
 
-    // Both endpoints must now MISS cache and re-query the store
     const afterItemRes = await fetch(`${baseUrl}/events/1`);
     assert.equal(afterItemRes.headers.get('x-cache'), 'MISS');
     const afterItem = (await afterItemRes.json()) as { data: Event };
@@ -167,14 +161,50 @@ describe('Afisha Server API', () => {
     assert.equal(nonNumericEvent.status, 404);
   });
 
-  it('validates inputs with Zod (400) and bypasses rate limiter with x-internal-secret', async () => {
+  it('tracks separate rate-limit buckets per x-client-ip when x-internal-secret is valid and counts cache hits', async () => {
+    ctx = await startTestServer({
+      internalSecret: 'my-ssr-secret',
+      rateLimit: { windowMs: 1200, max: 2 },
+    });
+    const { baseUrl } = ctx;
+
+    const ipAHeaders = {
+      'x-internal-secret': 'my-ssr-secret',
+      'x-client-ip': '203.0.113.10',
+    };
+    const ipBHeaders = {
+      'x-internal-secret': 'my-ssr-secret',
+      'x-client-ip': '203.0.113.20',
+    };
+
+    const a1 = await fetch(`${baseUrl}/cities`, { headers: ipAHeaders });
+    assert.equal(a1.status, 200);
+    assert.equal(a1.headers.get('x-cache'), 'MISS');
+
+    const a2 = await fetch(`${baseUrl}/cities`, { headers: ipAHeaders });
+    assert.equal(a2.status, 200);
+    assert.equal(a2.headers.get('x-cache'), 'HIT');
+
+    const a3 = await fetch(`${baseUrl}/cities`, { headers: ipAHeaders });
+    assert.equal(a3.status, 429);
+    assert.ok(Number(a3.headers.get('retry-after')) >= 1);
+
+    const b1 = await fetch(`${baseUrl}/cities`, { headers: ipBHeaders });
+    assert.equal(b1.status, 200);
+
+    await sleep(1250);
+
+    const aAfterReset = await fetch(`${baseUrl}/cities`, { headers: ipAHeaders });
+    assert.equal(aAfterReset.status, 200);
+  });
+
+  it('ignores spoofed x-client-ip and X-Forwarded-For without valid secret and isolates internal requests', async () => {
     ctx = await startTestServer({
       internalSecret: 'my-ssr-secret',
       rateLimit: { windowMs: 60_000, max: 2 },
     });
     const { baseUrl } = ctx;
 
-    // Invalid PATCH payload -> 400 VALIDATION_ERROR
     const badPatch = await fetch(`${baseUrl}/events/1`, {
       method: 'PATCH',
       headers: {
@@ -185,18 +215,27 @@ describe('Afisha Server API', () => {
     });
     assert.equal(badPatch.status, 400);
 
-    // 5 internal SSR requests with valid secret should bypass the max=2 rate limit completely
     for (let i = 0; i < 5; i++) {
-      const ssrRes = await fetch(`${baseUrl}/cities`, {
+      const internalRes = await fetch(`${baseUrl}/cities`, {
         headers: { 'x-internal-secret': 'my-ssr-secret' },
       });
-      assert.equal(ssrRes.status, 200);
+      assert.equal(internalRes.status, 200);
     }
 
-    // Public requests without the header consume the limit (max = 2) and the 3rd gets 429
-    const r1 = await fetch(`${baseUrl}/cities`);
-    const r2 = await fetch(`${baseUrl}/cities`);
-    const r3 = await fetch(`${baseUrl}/cities`);
+    const r1 = await fetch(`${baseUrl}/cities`, {
+      headers: { 'x-client-ip': '198.51.100.1', 'x-forwarded-for': '198.51.100.1' },
+    });
+    const r2 = await fetch(`${baseUrl}/cities`, {
+      headers: {
+        'x-internal-secret': 'wrong-secret',
+        'x-client-ip': '198.51.100.2',
+        'x-forwarded-for': '198.51.100.2',
+      },
+    });
+    const r3 = await fetch(`${baseUrl}/cities`, {
+      headers: { 'x-client-ip': '198.51.100.3', 'x-forwarded-for': '198.51.100.3' },
+    });
+
     assert.equal(r1.status, 200);
     assert.equal(r2.status, 200);
     assert.equal(r3.status, 429);

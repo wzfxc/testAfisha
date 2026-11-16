@@ -4,6 +4,13 @@ import { useEffect } from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+function getFriendlyErrorMessage(rawMessage: string | undefined): string {
+  if (!rawMessage || rawMessage.includes('Server Components render')) {
+    return 'The service is temporarily unavailable or rate limit was exceeded. Please wait a moment and try again.';
+  }
+  return rawMessage;
+}
+
 export default function GlobalError({
   error,
   reset,
@@ -24,7 +31,7 @@ export default function GlobalError({
         Unable to load this view
       </h2>
       <p className="mt-1.5 text-sm text-slate-600">
-        {error.message || 'An unexpected error occurred while communicating with the server.'}
+        {getFriendlyErrorMessage(error.message)}
       </p>
       <div className="mt-5 flex justify-center">
         <Button variant="primary" onClick={reset}>
@@ -35,4 +42,3 @@ export default function GlobalError({
     </div>
   );
 }
-

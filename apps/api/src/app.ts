@@ -12,10 +12,6 @@ export interface AppDependencies {
   eventService: EventService;
 }
 
-/**
- * Builds and configures the Express application instance without binding a port.
- * Keeping app construction separate from `server.ts` makes integration testing clean.
- */
 export function createApp({ config, eventService }: AppDependencies): Express {
   const app = express();
 
@@ -30,33 +26,35 @@ export function createApp({ config, eventService }: AppDependencies): Express {
       cors({
         origin: config.corsOrigins,
         methods: ['GET', 'PATCH', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'x-internal-secret'],
+        allowedHeaders: [
+          'Content-Type',
+          'x-internal-secret',
+          'x-client-ip',
+          'x-rate-limit-counted',
+        ],
       }),
     );
   }
 
   app.use(express.json({ limit: '16kb' }));
 
-  // 1. Detect Next.js SSR internal requests via `x-internal-secret`
-  app.use(internalBypass(config.internalSecret));
-
-  // 2. Apply IP-based rate limiting (skips requests flagged by `internalBypass`)
-  app.use(createRateLimiter(config.rateLimit));
-
-  // 3. Healthcheck endpoint
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' });
   });
 
-  // 4. Mount domain routes (`/events`, `/cities`, and also under `/api` prefix for convenience)
+  app.use(internalBypass(config.internalSecret));
+  app.use(createRateLimiter(config.rateLimit));
+
+  app.get('/rate-limit', (_req, res) => {
+    res.status(204).end();
+  });
+
   const apiRoutes = createApiRoutes(eventService);
   app.use(apiRoutes);
   app.use('/api', apiRoutes);
 
-  // 5. 404 & Global Error Handler
   app.use(notFoundHandler);
   app.use(errorHandler);
 
   return app;
 }
-

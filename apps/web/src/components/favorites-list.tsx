@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
 import Link from 'next/link';
 import { Heart } from 'lucide-react';
 import type { Event } from '@app/shared';
@@ -12,17 +11,11 @@ export interface FavoritesListProps {
 }
 
 export function FavoritesList({ initialEvents }: FavoritesListProps) {
-  const { isFavorite, favoriteIds } = useFavorites();
+  const { isFavorite, isHydrated } = useFavorites();
 
-  // Keep only events that are currently marked as favorite in optimistic state
-  const visibleEvents =
-    favoriteIds.length === 0 && initialEvents.length > 0
-      ? initialEvents.filter((e) => isFavorite(e.id))
-      : initialEvents.filter((e) => isFavorite(e.id));
-
-  useEffect(() => {
-    // No-op: ensures reactivity with optimistic favoriteIds
-  }, [favoriteIds]);
+  const visibleEvents = isHydrated
+    ? initialEvents.filter((e) => isFavorite(e.id))
+    : initialEvents;
 
   if (visibleEvents.length === 0) {
     return (
@@ -56,4 +49,3 @@ export function FavoritesList({ initialEvents }: FavoritesListProps) {
     </div>
   );
 }
-

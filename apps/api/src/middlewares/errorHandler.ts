@@ -9,6 +9,7 @@ import {
   PayloadTooLargeError,
   UnsupportedMediaTypeError,
 } from '../lib/errors.js';
+import { logger } from '../lib/logger.js';
 
 export const notFoundHandler: RequestHandler = (req, _res, next) => {
   next(new NotFoundError(`Route ${req.method} ${req.path} not found`));
@@ -104,11 +105,11 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, req, res, next) 
       : err instanceof Error
         ? err.message
         : String(err);
-  console.error(
+  logger.error(
     `[error] ${req.method} ${req.originalUrl} status=${statusCode} code=${code} requestId=${requestId} message=${JSON.stringify(logMessage)}`,
   );
   if (statusCode >= 500 && err instanceof Error && err.stack) {
-    console.error(err.stack);
+    logger.error(err.stack);
   }
 
   res.status(statusCode).json({

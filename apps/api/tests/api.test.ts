@@ -22,6 +22,11 @@ import { createGracefulShutdown } from '../src/lib/shutdown.js';
 import { EventService } from '../src/services/eventService.js';
 import { EventStore, type AtomicWriter } from '../src/services/eventStore.js';
 
+// Keep `pnpm test` output clean: the API logs every 4xx/5xx and shutdown step.
+// The logger reads LOG_LEVEL lazily, so setting it here (after imports) is enough.
+// Override with LOG_LEVEL=info to see server logs while debugging tests.
+process.env.LOG_LEVEL ??= 'silent';
+
 const SEED_FILE = new URL('../data/events.seed.json', import.meta.url);
 
 interface TestContext {

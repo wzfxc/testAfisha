@@ -3,6 +3,7 @@ import type { Server } from 'node:http';
 import { createApp } from './app.js';
 import { loadConfig } from './config/index.js';
 import { createGracefulShutdown } from './lib/shutdown.js';
+import { logger } from './lib/logger.js';
 import { EventService } from './services/eventService.js';
 import { EventStore } from './services/eventStore.js';
 
@@ -19,7 +20,7 @@ async function bootstrap(): Promise<void> {
     maxDelayMs: config.db.maxDelayMs,
   });
   await store.load(runtimeFile, seedFile);
-  console.log(`[startup] Loaded ${store.size} events into memory`);
+  logger.info(`[startup] Loaded ${store.size} events into memory`);
 
   const eventService = new EventService(store, {
     max: config.cache.maxEntries,
@@ -28,7 +29,7 @@ async function bootstrap(): Promise<void> {
   const app = createApp({ config, eventService });
 
   const server: Server = app.listen(config.port, () => {
-    console.log(`[startup] Server listening on http://localhost:${config.port} (${config.nodeEnv})`);
+    logger.info(`[startup] Server listening on http://localhost:${config.port} (${config.nodeEnv})`);
   });
 
   const shutdown = createGracefulShutdown({
@@ -41,16 +42,16 @@ async function bootstrap(): Promise<void> {
   process.on('SIGTERM', () => void shutdown('SIGTERM', 0));
   process.on('SIGINT', () => void shutdown('SIGINT', 0));
   process.on('unhandledRejection', (reason: unknown) => {
-    console.error('[fatal] Unhandled Promise rejection:', reason);
+    logger.error('[fatal] Unhandled Promise rejection:', reason);
     void shutdown('unhandledRejection', 1);
   });
   process.on('uncaughtException', (err: Error) => {
-    console.error('[fatal] Uncaught exception:', err);
+    logger.error('[fatal] Uncaught exception:', err);
     void shutdown('uncaughtException', 1);
   });
 }
 
 bootstrap().catch((err: unknown) => {
-  console.error('[fatal] Failed to start server:', err);
+  logger.error('[fatal] Failed to start server:', err);
   process.exit(1);
 });

@@ -1,5 +1,6 @@
 import type { Server } from 'node:http';
 import type { EventStore } from '../services/eventStore.js';
+import { logger } from './logger.js';
 
 export interface GracefulShutdownOptions {
   server: Server;
@@ -36,10 +37,10 @@ export function createGracefulShutdown({
     }
     isShuttingDown = true;
 
-    console.log(`[shutdown] Received ${signal}. Stopping new connections and draining active requests...`);
+    logger.info(`[shutdown] Received ${signal}. Stopping new connections and draining active requests...`);
 
     const forceExitTimer = setTimeout(() => {
-      console.error(
+      logger.error(
         `[shutdown] Could not drain connections within ${timeoutMs}ms; forcing exit.`,
       );
       onExit(1);
@@ -52,17 +53,17 @@ export function createGracefulShutdown({
         void store
           .flushPendingWrites()
           .catch((flushErr: unknown) => {
-            console.error('[shutdown] Error while flushing pending file writes:', flushErr);
+            logger.error('[shutdown] Error while flushing pending file writes:', flushErr);
           })
           .finally(() => {
             clearTimeout(forceExitTimer);
             if (err) {
-              console.error('[shutdown] Error while closing HTTP server:', err);
+              logger.error('[shutdown] Error while closing HTTP server:', err);
               onExit(1);
               resolve();
               return;
             }
-            console.log('[shutdown] All active requests finished. Server closed cleanly.');
+            logger.info('[shutdown] All active requests finished. Server closed cleanly.');
             onExit(exitCode);
             resolve();
           });

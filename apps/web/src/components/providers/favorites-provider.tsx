@@ -36,13 +36,9 @@ export interface FavoritesProviderProps {
 /**
  * Global Favorites Provider powered by React 19 `useOptimistic`.
  *
- * Race-condition protection for rapid consecutive clicks (e.g. 5 fast clicks):
- * 1. A synchronous `desiredMapRef` tracks the latest target boolean per `eventId`
- *    at the exact instant of each click, even before any transition completes.
- * 2. Only the latest target state is sent in a serialized promise queue so earlier
- *    in-flight clicks can never overwrite a newer click in the HTTP-only cookie.
- * 3. If the Server Action fails, `committedIds` remains untouched so `useOptimistic`
- *    automatically rolls back the UI and displays an error toast.
+ * Hydrates initial state from the HTTP-only cookie via `/api/favorites` on mount
+ * (keeping the root layout static-friendly so `/events/[id]` can use `generateStaticParams`),
+ * and performs all mutations through the `setFavoriteAction` Server Action.
  */
 export function FavoritesProvider({
   initialFavoriteIds,
@@ -52,10 +48,26 @@ export function FavoritesProvider({
   const [toastError, setToastError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  // Sync if server re-renders with updated cookie values
+  // Hydrate initial favorite IDs from the server's HTTP-only cookie
   useEffect(() => {
-    setCommittedIds(initialFavoriteIds);
-  }, [initialFavoriteIds]);
+    let active = true;
+    fetch('/api/favorites', { cache: 'no-store' })
+      .then((res) => (res.ok ? (res.json() as Promise<{ favoriteIds: number[] }>) : null))
+      .then((data) => {
+        if (active && data && Array.isArray(data.favoriteIds)) {
+          // Only hydrate if user hasn't already clicked a favorite button before fetch resolved
+          if (desiredMapRef.current.size === 0) {
+            setCommittedIds(data.favoriteIds);
+          }
+        }
+      })
+      .catch(() => {
+        // Ignore initial hydration errors
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const [optimisticIds, applyOptimistic] = useOptimistic<
     number[],

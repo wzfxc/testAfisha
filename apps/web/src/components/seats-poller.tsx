@@ -117,10 +117,10 @@ export function SeatsPoller({
       }
     };
 
-    // Wait 5 seconds after initial server snapshot (or poll immediately if initial load failed)
+    // Poll immediately on mount when no initial snapshot is present, then every 5s after completion
     timeoutId = setTimeout(
       pollOnceThenScheduleNext,
-      initialSeats ? POLL_INTERVAL_MS : 500,
+      initialSeats ? POLL_INTERVAL_MS : 0,
     );
 
     return () => {

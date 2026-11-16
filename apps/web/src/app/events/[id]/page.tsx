@@ -10,18 +10,13 @@ import { fetchEventById, fetchEvents } from '@/lib/api';
 import { formatEventDate } from '@/lib/utils';
 
 /**
- * Pre-renders the 15 nearest events at build time.
+ * Pre-renders the 15 nearest events at build time by querying the API server.
  * Since `GET /events` returns events sorted ascending by `date`,
  * `page=1&limit=15` yields the 15 nearest upcoming events.
  */
 export async function generateStaticParams(): Promise<Array<{ id: string }>> {
-  try {
-    const nearest = await fetchEvents({ page: 1, limit: 15 });
-    return nearest.data.map((event) => ({ id: String(event.id) }));
-  } catch {
-    // Graceful fallback if the API server is offline during an isolated CI build
-    return Array.from({ length: 15 }, (_, index) => ({ id: String(index + 1) }));
-  }
+  const nearest = await fetchEvents({ page: 1, limit: 15 });
+  return nearest.data.map((event) => ({ id: String(event.id) }));
 }
 
 interface EventDetailPageProps {
@@ -117,4 +112,3 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
     </div>
   );
 }
-

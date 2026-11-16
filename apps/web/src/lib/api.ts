@@ -61,9 +61,7 @@ export async function fetchEvents(params: FetchEventsParams = {}): Promise<Pagin
   if (params.limit) search.set('limit', String(params.limit));
 
   const qs = search.toString();
-  const res = await internalFetch(`/events${qs ? `?${qs}` : ''}`, {
-    cache: 'no-store',
-  });
+  const res = await internalFetch(`/events${qs ? `?${qs}` : ''}`);
 
   if (!res.ok) {
     throw new ApiHttpError(res.status, `Failed to fetch events (${res.status})`);
@@ -78,9 +76,7 @@ const SingleEventResponseSchema = z.object({
 });
 
 export async function fetchEventById(id: number): Promise<Event | null> {
-  const res = await internalFetch(`/events/${id}`, {
-    cache: 'no-store',
-  });
+  const res = await internalFetch(`/events/${id}`);
 
   if (res.status === 404) {
     return null;
@@ -99,9 +95,7 @@ const CitiesResponseSchema = z.object({
 });
 
 export async function fetchCities(): Promise<string[]> {
-  const res = await internalFetch('/cities', {
-    cache: 'no-store',
-  });
+  const res = await internalFetch('/cities');
 
   if (!res.ok) {
     throw new ApiHttpError(res.status, `Failed to fetch cities (${res.status})`);
@@ -115,10 +109,11 @@ const SeatsResponseSchema = z.object({
   data: SeatsInfoSchema,
 });
 
-export async function fetchEventSeats(id: number): Promise<SeatsInfo> {
-  const res = await internalFetch(`/events/${id}/seats`, {
-    cache: 'no-store',
-  });
+export async function fetchEventSeats(
+  id: number,
+  options: { cache?: RequestCache } = { cache: 'no-store' },
+): Promise<SeatsInfo> {
+  const res = await internalFetch(`/events/${id}/seats`, options);
 
   if (!res.ok) {
     throw new ApiHttpError(res.status, `Failed to fetch seats for event #${id} (${res.status})`);
@@ -153,4 +148,3 @@ export async function patchEvent(id: number, body: UpdateEventBody): Promise<Eve
   const json: unknown = await res.json();
   return SingleEventResponseSchema.parse(json).data;
 }
-

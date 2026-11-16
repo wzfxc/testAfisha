@@ -1,6 +1,4 @@
-import type { SeatsInfo } from '@app/shared';
 import { SeatsPoller } from '@/components/seats-poller';
-import { fetchEventSeats } from '@/lib/api';
 
 export interface SeatsSectionProps {
   eventId: number;
@@ -8,29 +6,23 @@ export interface SeatsSectionProps {
 }
 
 /**
- * Isolated async Server Component wrapped in `<Suspense>` on `/events/[id]`.
- * Catches upstream errors locally so a failure in `/events/:id/seats` NEVER
- * crashes the rest of the Event Detail page.
+ * Isolated Seats section wrapped in `<Suspense>` on `/events/[id]`.
+ *
+ * Notice how `SeatsPoller` immediately fetches `/api/events/:id/seats` on the
+ * client (and then every 5 seconds after each response completes):
+ * - `/events/:id/seats` is NEVER cached at build time or across users.
+ * - Pre-rendering the 15 nearest `/events/[id]` pages at build time via
+ *   `generateStaticParams` succeeds without triggering Next.js `no-store` bailout.
+ * - A 500 error from `/events/:id/seats` is contained inside `SeatsPoller`
+ *   and never crashes the event detail page.
  */
 export async function SeatsSection({ eventId, capacity }: SeatsSectionProps) {
-  let initialSeats: SeatsInfo | null = null;
-  let initialError: string | null = null;
-
-  try {
-    initialSeats = await fetchEventSeats(eventId);
-  } catch (err: unknown) {
-    initialError =
-      err instanceof Error
-        ? err.message
-        : 'Live seat telemetry is temporarily unavailable.';
-  }
-
   return (
     <SeatsPoller
       eventId={eventId}
       capacity={capacity}
-      initialSeats={initialSeats}
-      initialError={initialError}
+      initialSeats={null}
+      initialError={null}
     />
   );
 }
@@ -51,4 +43,3 @@ export function SeatsSectionSkeleton() {
     </div>
   );
 }
-

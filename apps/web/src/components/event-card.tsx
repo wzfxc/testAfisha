@@ -13,16 +13,17 @@ export interface EventCardProps {
 
 export function EventCard({ event, initialFavorite }: EventCardProps) {
   return (
-    <Card className="flex h-full flex-col justify-between transition-colors hover:border-slate-300">
-      <div>
+    <Card className="flex h-full min-w-0 flex-col justify-between transition-colors hover:border-slate-300">
+      <div className="min-w-0">
         <CardHeader className="flex flex-row items-start justify-between gap-3">
-          <div className="space-y-1.5">
+          <div className="min-w-0 flex-1 space-y-1.5">
             <Badge variant="default">{event.city}</Badge>
-            <CardTitle>
+            <CardTitle className="break-words [overflow-wrap:anywhere]">
               <Link
                 href={`/events/${event.id}`}
                 prefetch={false}
-                className="hover:text-blue-600 hover:underline"
+                title={event.title}
+                className="line-clamp-2 break-words [overflow-wrap:anywhere] hover:text-blue-600 hover:underline"
               >
                 {event.title}
               </Link>
@@ -30,12 +31,16 @@ export function EventCard({ event, initialFavorite }: EventCardProps) {
           </div>
           <FavoriteButton
             eventId={event.id}
+            className="shrink-0"
             {...(initialFavorite !== undefined ? { initialFavorite } : {})}
           />
         </CardHeader>
 
-        <CardContent className="space-y-3">
-          <p className="line-clamp-2 text-sm text-slate-600">
+        <CardContent className="min-w-0 space-y-3">
+          <p
+            title={event.description}
+            className="line-clamp-3 break-words [overflow-wrap:anywhere] text-sm text-slate-600"
+          >
             {event.description}
           </p>
 
@@ -44,9 +49,9 @@ export function EventCard({ event, initialFavorite }: EventCardProps) {
               <Calendar className="h-3.5 w-3.5 shrink-0 text-slate-400" />
               <dd>{formatEventDate(event.date)}</dd>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-              <dd className="truncate">
+              <dd className="min-w-0 truncate">
                 {event.venue}, {event.city}
               </dd>
             </div>
@@ -70,7 +75,7 @@ export function EventCard({ event, initialFavorite }: EventCardProps) {
         <Link
           href={`/events/${event.id}/edit`}
           prefetch={false}
-          className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+          className="inline-flex shrink-0 items-center gap-1 rounded px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800"
         >
           <Pencil className="h-3 w-3" />
           <span>Edit</span>

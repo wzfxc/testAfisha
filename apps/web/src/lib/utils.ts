@@ -17,3 +17,11 @@ export function formatEventDate(isoDate: string): string {
   }).format(date);
 }
 
+export function truncateText(value: string, maxLength = 60): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= maxLength) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, Math.max(1, maxLength - 1)).trimEnd()}…`;
+}
+

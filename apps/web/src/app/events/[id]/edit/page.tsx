@@ -24,7 +24,7 @@ export default async function EditEventPage({ params }: EditEventPageProps) {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto w-full min-w-0 max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
         <Link
           href={`/events/${event.id}`}

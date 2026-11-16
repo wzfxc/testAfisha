@@ -6,7 +6,8 @@
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start --port 3000",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/web.test.ts"
   },
   "dependencies": {
     "@app/shared": "workspace:*",
@@ -27,6 +28,7 @@
     "autoprefixer": "^10.4.20",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.23.15",
     "typescript": "^5.8.2"
   }
 }

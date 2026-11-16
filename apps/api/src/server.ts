@@ -2,6 +2,7 @@ import 'dotenv/config';
 import type { Server } from 'node:http';
 import { createApp } from './app.js';
 import { loadConfig } from './config/index.js';
+import { createGracefulShutdown } from './lib/shutdown.js';
 import { EventService } from './services/eventService.js';
 import { EventStore } from './services/eventStore.js';
 
@@ -30,52 +31,22 @@ async function bootstrap(): Promise<void> {
     console.log(`[startup] Server listening on http://localhost:${config.port} (${config.nodeEnv})`);
   });
 
-  let isShuttingDown = false;
+  const shutdown = createGracefulShutdown({
+    server,
+    store,
+    timeoutMs: config.shutdownTimeoutMs,
+    onExit: (code) => process.exit(code),
+  });
 
-  const shutdown = (signal: string, exitCode = 0): void => {
-    if (isShuttingDown) {
-      return;
-    }
-    isShuttingDown = true;
-    console.log(`[shutdown] Received ${signal}. Stopping new connections and draining active requests...`);
-
-    const forceExitTimer = setTimeout(() => {
-      console.error(
-        `[shutdown] Could not drain connections within ${config.shutdownTimeoutMs}ms; forcing exit.`,
-      );
-      process.exit(1);
-    }, config.shutdownTimeoutMs);
-
-    forceExitTimer.unref();
-
-    server.close((err) => {
-      void store
-        .flushPendingWrites()
-        .catch((flushErr: unknown) => {
-          console.error('[shutdown] Error while flushing pending file writes:', flushErr);
-        })
-        .finally(() => {
-          clearTimeout(forceExitTimer);
-          if (err) {
-            console.error('[shutdown] Error while closing HTTP server:', err);
-            process.exit(1);
-            return;
-          }
-          console.log('[shutdown] All active requests finished. Server closed cleanly.');
-          process.exit(exitCode);
-        });
-    });
-  };
-
-  process.on('SIGTERM', () => shutdown('SIGTERM', 0));
-  process.on('SIGINT', () => shutdown('SIGINT', 0));
+  process.on('SIGTERM', () => void shutdown('SIGTERM', 0));
+  process.on('SIGINT', () => void shutdown('SIGINT', 0));
   process.on('unhandledRejection', (reason: unknown) => {
     console.error('[fatal] Unhandled Promise rejection:', reason);
-    shutdown('unhandledRejection', 1);
+    void shutdown('unhandledRejection', 1);
   });
   process.on('uncaughtException', (err: Error) => {
     console.error('[fatal] Uncaught exception:', err);
-    shutdown('uncaughtException', 1);
+    void shutdown('uncaughtException', 1);
   });
 }
 

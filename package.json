@@ -9,6 +9,6 @@
     "build:api": "pnpm --filter @app/api build",
     "build:web": "pnpm --filter @app/web build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm --filter @app/api test"
+    "test": "pnpm -r test"
   }
 }

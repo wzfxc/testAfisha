@@ -12,6 +12,8 @@ export interface PromiseCacheOptions {
   max: number;
   /** Entry time-to-live in milliseconds. */
   ttlMs: number;
+  /** Optional clock override (defaults to Date.now so fake timers control TTL). */
+  perf?: { now(): number };
 }
 
 /**
@@ -29,6 +31,8 @@ export class PromiseCache<V> {
     this.cache = new LRUCache<string, Promise<V>>({
       max: options.max,
       ttl: options.ttlMs,
+      ttlResolution: 0,
+      perf: options.perf ?? { now: () => Date.now() },
     });
   }
 

@@ -24,7 +24,7 @@ export interface AppConfig {
   nodeEnv: 'development' | 'production' | 'test';
   port: number;
   internalSecret: string | undefined;
-  rateLimit: { windowMs: number; max: number };
+  rateLimit: { windowMs: number; max: number; internalMax?: number | undefined };
   trustProxyHops: number;
   corsOrigins: string[];
   cache: { ttlMs: number; maxEntries: number };

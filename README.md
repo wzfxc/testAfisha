@@ -67,19 +67,25 @@ docker compose up --build
 
 ## 2. Running Tests
 
-The backend integration test suite (`node:test` + `tsx`) verifies:
-- **60-event startup dataset load** and chronological date sorting.
-- **Thundering herd protection:** 50 simultaneous cold-cache requests to `GET /events` trigger **exactly 1** slow-DB read.
-- **Warm-cache performance:** Subsequent requests return with `X-Cache: HIT` in single-digit milliseconds (no `300–800ms` delay).
-- **Cache invalidation:** `PATCH /events/:id` immediately invalidates both `GET /events/:id` and `GET /events`.
-- **Uncached live seats & 404 handling:** `GET /events/:id/seats` returns a fresh random integer (`0..capacity`) with zero DB delay; `GET /events/9999` and `GET /events/abc` return `404`.
-- **Per-IP rate limiting, cache-hit counting & anti-spoofing:** Separate counters per `x-client-ip` when `x-internal-secret` is valid, cached responses (`X-Cache: HIT`) counted toward the limit, `429` with `Retry-After` on overflow, automatic recovery after `windowMs`, `internal` bucket isolation for build/ISR requests, and complete rejection of spoofed `x-client-ip` / `X-Forwarded-For` headers without a valid secret.
-
-Run the tests from the root directory:
+Run all workspace tests (`apps/api` and `apps/web`) from the root directory using `node:test` + `tsx` (with fake timers and isolated `os.tmpdir()` runtime data):
 
 ```bash
-pnpm --filter @app/api test
+pnpm test
 ```
+
+You can also run each package individually:
+```bash
+pnpm --filter @app/api test
+pnpm --filter @app/web test
+```
+
+**Test coverage summary:**
+- **API Cache (`apps/api/tests/api.test.ts`):** Warm `X-Cache: HIT` (<50ms without touching storage), TTL expiration with fake timers, LRU eviction beyond `maxEntries`, `PATCH` invalidation of `/events/:id` and all `/events` pages without evicting `/cities`, and query key normalization.
+- **API Concurrency:** 50 identical cold requests coalesced into 1 storage read, 50 distinct keys reading independently, and failed-promise eviction without poisoning cache.
+- **API Rate Limit:** Per-`x-client-ip` counters, cache-hit accounting, anti-spoofing (ignoring forged `x-client-ip`/`X-Forwarded-For`), `429 RATE_LIMITED` + `Retry-After`, fake-timer window reset, and isolated `internal` bucket.
+- **API Validation & Errors:** `400 VALIDATION_ERROR` with field `details` (`page=abc/0/-1`, `limit`, oversized `q`/`city`, invalid/empty PATCH), `400 INVALID_JSON`, `413`, `415`, `404`, `405` (`Allow`), `500 INTERNAL_ERROR` (no stack trace leak), and matching `x-request-id` / `error.requestId`.
+- **API Persistence, Seats & Shutdown:** Seed-to-runtime copy, restart persistence, concurrent field-merging `PATCH`, write-error `500` rollback consistency, uncached instant `/seats` (`0..capacity`), and `SIGTERM` graceful draining.
+- **Web Unit Tests (`apps/web/tests/web.test.ts`):** Favorites cookie parsing/deduplication/limit, API error-to-UI message mapping (`404`/`429`/`5xx`/timeout/network), and filter URL builder (`buildHref`).
 
 ---
 

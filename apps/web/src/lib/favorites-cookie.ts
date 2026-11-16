@@ -1,36 +1,25 @@
 import 'server-only';
 import { cookies } from 'next/headers';
-import { z } from 'zod';
+import {
+  FAVORITES_COOKIE_NAME,
+  parseFavoriteIds,
+  serializeFavoriteIds,
+} from '@/lib/favorites-codec';
 
-export const FAVORITES_COOKIE_NAME = 'afisha_favorites';
+export { FAVORITES_COOKIE_NAME };
 const FAVORITES_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
-
-const FavoriteIdsSchema = z.array(z.number().int().positive());
 
 export async function getFavoriteIdsFromCookie(): Promise<number[]> {
   const cookieStore = await cookies();
   const raw = cookieStore.get(FAVORITES_COOKIE_NAME)?.value;
-  if (!raw) {
-    return [];
-  }
-
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    const validated = FavoriteIdsSchema.safeParse(parsed);
-    if (!validated.success) {
-      return [];
-    }
-    return [...new Set(validated.data)];
-  } catch {
-    return [];
-  }
+  return parseFavoriteIds(raw);
 }
 
 export async function setFavoriteIdsInCookie(ids: number[]): Promise<number[]> {
-  const uniqueIds = [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))];
+  const { uniqueIds, json } = serializeFavoriteIds(ids);
   const cookieStore = await cookies();
 
-  cookieStore.set(FAVORITES_COOKIE_NAME, JSON.stringify(uniqueIds), {
+  cookieStore.set(FAVORITES_COOKIE_NAME, json, {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Loader2, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { buildHref } from '@/lib/search-href';
 import type { PaginationMeta } from '@app/shared';
 
 export interface SearchFiltersProps {
@@ -20,29 +21,6 @@ export interface EventsPaginationProps {
 }
 
 const DEBOUNCE_MS = 300;
-
-function buildHref(
-  pathname: string,
-  values: { city?: string; q?: string; page?: number },
-): string {
-  const params = new URLSearchParams();
-  const cleanCity = values.city?.trim() ?? '';
-  const cleanQ = values.q?.trim() ?? '';
-  const targetPage = values.page ?? 1;
-
-  if (cleanCity.length > 0) {
-    params.set('city', cleanCity);
-  }
-  if (cleanQ.length > 0) {
-    params.set('q', cleanQ);
-  }
-  if (targetPage > 1) {
-    params.set('page', String(targetPage));
-  }
-
-  const qs = params.toString();
-  return qs ? `${pathname}?${qs}` : pathname;
-}
 
 export function SearchFilters({
   cities,

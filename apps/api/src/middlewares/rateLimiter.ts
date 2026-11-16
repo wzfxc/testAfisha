@@ -4,7 +4,7 @@ import { RateLimitError } from '../lib/errors.js';
 export interface RateLimiterOptions {
   windowMs: number;
   max: number;
-  internalMax?: number;
+  internalMax?: number | undefined;
 }
 
 interface RateBucket {

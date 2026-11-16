@@ -9,13 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { fetchEventById, fetchEvents } from '@/lib/api';
 import { formatEventDate } from '@/lib/utils';
 
-/**
- * Pre-renders the 15 nearest events at build time by querying the API server.
- * Since `GET /events` returns events sorted ascending by `date`,
- * `page=1&limit=15` yields the 15 nearest upcoming events.
- */
 export async function generateStaticParams(): Promise<Array<{ id: string }>> {
-  const nearest = await fetchEvents({ page: 1, limit: 15 });
+  const nearest = await fetchEvents({ page: 1, limit: 15 }, { cache: 'force-cache' });
   return nearest.data.map((event) => ({ id: String(event.id) }));
 }
 

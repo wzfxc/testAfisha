@@ -27,11 +27,6 @@ interface InternalFetchOptions extends Omit<RequestInit, 'headers'> {
   headers?: Record<string, string>;
 }
 
-/**
- * Server-only fetch wrapper.
- * Automatically attaches `x-internal-secret` so Next.js SSR / SSG / Server Actions
- * bypass the Express IP rate limiter, and keeps `API_URL` strictly out of the client bundle.
- */
 async function internalFetch(path: string, options: InternalFetchOptions = {}): Promise<Response> {
   const url = `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 
@@ -53,15 +48,31 @@ export interface FetchEventsParams {
   limit?: number | undefined;
 }
 
-export async function fetchEvents(params: FetchEventsParams = {}): Promise<PaginatedEvents> {
+export async function fetchEvents(
+  params: FetchEventsParams = {},
+  options: { cache?: RequestCache } = { cache: 'no-store' },
+): Promise<PaginatedEvents> {
   const search = new URLSearchParams();
-  if (params.city) search.set('city', params.city);
-  if (params.q) search.set('q', params.q);
-  if (params.page) search.set('page', String(params.page));
-  if (params.limit) search.set('limit', String(params.limit));
+  const cleanCity = params.city?.trim();
+  const cleanQ = params.q?.trim();
+
+  if (cleanCity && cleanCity !== 'undefined' && cleanCity !== 'null') {
+    search.set('city', cleanCity);
+  }
+  if (cleanQ && cleanQ !== 'undefined' && cleanQ !== 'null') {
+    search.set('q', cleanQ);
+  }
+  if (params.page && Number.isFinite(params.page) && params.page > 0) {
+    search.set('page', String(params.page));
+  }
+  if (params.limit && Number.isFinite(params.limit) && params.limit > 0) {
+    search.set('limit', String(params.limit));
+  }
 
   const qs = search.toString();
-  const res = await internalFetch(`/events${qs ? `?${qs}` : ''}`);
+  const res = await internalFetch(`/events${qs ? `?${qs}` : ''}`, {
+    cache: options.cache ?? 'no-store',
+  });
 
   if (!res.ok) {
     throw new ApiHttpError(res.status, `Failed to fetch events (${res.status})`);
@@ -95,7 +106,9 @@ const CitiesResponseSchema = z.object({
 });
 
 export async function fetchCities(): Promise<string[]> {
-  const res = await internalFetch('/cities');
+  const res = await internalFetch('/cities', {
+    cache: 'no-store',
+  });
 
   if (!res.ok) {
     throw new ApiHttpError(res.status, `Failed to fetch cities (${res.status})`);

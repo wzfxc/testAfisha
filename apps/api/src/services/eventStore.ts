@@ -13,18 +13,12 @@ export interface EventPatch {
   description?: string | undefined;
 }
 
-/**
- * In-memory "database". The JSON file is read once at startup; every read that
- * goes through the simulated DB (`findMany`, `findById`, `listCities`) waits
- * 300–800 ms (configurable). `peekById` is the fast path used for seats.
- */
 export class EventStore {
   private readonly events = new Map<number, Event>();
   private queries = 0;
 
   constructor(private readonly options: EventStoreOptions) {}
 
-  /** Reads and validates the JSON file into memory. Call once at startup. */
   async load(file: URL | string): Promise<void> {
     const raw = await readFile(file, 'utf8');
     const parsed = z.array(EventSchema).parse(JSON.parse(raw));
@@ -34,7 +28,6 @@ export class EventStore {
     }
   }
 
-  /** Number of slow-DB queries executed so far (used to verify caching). */
   get queryCount(): number {
     return this.queries;
   }
@@ -43,26 +36,23 @@ export class EventStore {
     return this.events.size;
   }
 
-  /** Slow query: filtered events sorted by date ascending. */
   async findMany(filter: EventFilter): Promise<Event[]> {
     await this.simulateLatency();
 
-    const city = filter.city?.toLowerCase();
-    const q = filter.q?.toLowerCase();
+    const city = filter.city?.trim().toLowerCase() || undefined;
+    const q = filter.q?.trim().toLowerCase() || undefined;
 
     return [...this.events.values()]
-      .filter((e) => (city === undefined ? true : e.city.toLowerCase() === city))
-      .filter((e) => (q === undefined ? true : e.title.toLowerCase().includes(q)))
+      .filter((e) => (!city ? true : e.city.toLowerCase() === city))
+      .filter((e) => (!q ? true : e.title.toLowerCase().includes(q)))
       .sort((a, b) => Date.parse(a.date) - Date.parse(b.date) || a.id - b.id);
   }
 
-  /** Slow query: single event or null. */
   async findById(id: number): Promise<Event | null> {
     await this.simulateLatency();
     return this.events.get(id) ?? null;
   }
 
-  /** Slow query: sorted unique city names. */
   async listCities(): Promise<string[]> {
     await this.simulateLatency();
     const cities = new Set<string>();
@@ -72,15 +62,10 @@ export class EventStore {
     return [...cities].sort((a, b) => a.localeCompare(b));
   }
 
-  /** Fast, synchronous lookup that bypasses the simulated latency. */
   peekById(id: number): Event | null {
     return this.events.get(id) ?? null;
   }
 
-  /**
-   * Applies a patch in memory. Records are replaced (never mutated) so any
-   * snapshot already handed out stays consistent.
-   */
   update(id: number, patch: EventPatch): Event | null {
     const current = this.events.get(id);
     if (!current) {

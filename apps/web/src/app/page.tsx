@@ -4,16 +4,20 @@ import { EventCard } from '@/components/event-card';
 import { SearchFilters } from '@/components/search-filters';
 import { fetchCities, fetchEvents } from '@/lib/api';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface HomePageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export default async function HomePage({ searchParams }: HomePageProps) {
-  const rawParams = await searchParams;
+  const { q, city, page } = await searchParams;
+
   const parsed = ListEventsQuerySchema.safeParse({
-    city: typeof rawParams.city === 'string' ? rawParams.city : undefined,
-    q: typeof rawParams.q === 'string' ? rawParams.q : undefined,
-    page: typeof rawParams.page === 'string' ? rawParams.page : undefined,
+    city,
+    q,
+    page,
     limit: 12,
   });
 
@@ -22,7 +26,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     : { city: undefined, q: undefined, page: 1, limit: 12 };
 
   const [eventsResult, cities] = await Promise.all([
-    fetchEvents(query),
+    fetchEvents(query, { cache: 'no-store' }),
     fetchCities(),
   ]);
 
@@ -69,4 +73,3 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     </div>
   );
 }
-

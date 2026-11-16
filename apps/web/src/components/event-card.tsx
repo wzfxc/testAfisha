@@ -20,6 +20,7 @@ export function EventCard({ event }: EventCardProps) {
             <CardTitle>
               <Link
                 href={`/events/${event.id}`}
+                prefetch={false}
                 className="hover:text-blue-600 hover:underline"
               >
                 {event.title}
@@ -56,6 +57,7 @@ export function EventCard({ event }: EventCardProps) {
       <CardFooter>
         <Link
           href={`/events/${event.id}`}
+          prefetch={false}
           className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
         >
           View details & live seats &rarr;
@@ -63,6 +65,7 @@ export function EventCard({ event }: EventCardProps) {
 
         <Link
           href={`/events/${event.id}/edit`}
+          prefetch={false}
           className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800"
         >
           <Pencil className="h-3 w-3" />
@@ -72,4 +75,3 @@ export function EventCard({ event }: EventCardProps) {
     </Card>
   );
 }
-

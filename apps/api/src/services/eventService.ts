@@ -12,16 +12,9 @@ import type { EventStore } from './eventStore.js';
 
 const CITIES_KEY = 'cities';
 
-/**
- * Business layer: puts the Promise cache in front of the slow store and owns
- * cache invalidation.
- */
 export class EventService {
-  /** `GET /events` — one entry per (city, q, page, limit) combination. */
   private readonly listCache: PromiseCache<PaginatedEvents>;
-  /** `GET /events/:id` — resolves to null for unknown ids (negative caching). */
   private readonly itemCache: PromiseCache<Event | null>;
-  /** `GET /cities` */
   private readonly citiesCache: PromiseCache<string[]>;
 
   constructor(
@@ -34,24 +27,32 @@ export class EventService {
   }
 
   list(query: ListEventsQuery): Promise<CacheResult<PaginatedEvents>> {
-    const key = JSON.stringify([
-      query.city?.toLowerCase() ?? null,
-      query.q?.toLowerCase() ?? null,
-      query.page,
-      query.limit,
-    ]);
+    const normalizedCity = query.city?.trim().toLowerCase() || undefined;
+    const normalizedQ = query.q?.trim().toLowerCase() || undefined;
+    const page = Math.max(1, query.page || 1);
+    const limit = Math.max(1, query.limit || 12);
+
+    const key = JSON.stringify({
+      city: normalizedCity ?? null,
+      q: normalizedQ ?? null,
+      page,
+      limit,
+    });
 
     return this.listCache.getOrLoad(key, async () => {
-      const all = await this.store.findMany({ city: query.city, q: query.q });
+      const all = await this.store.findMany({
+        city: normalizedCity,
+        q: normalizedQ,
+      });
       const total = all.length;
-      const offset = (query.page - 1) * query.limit;
+      const offset = (page - 1) * limit;
       return {
-        data: all.slice(offset, offset + query.limit),
+        data: all.slice(offset, offset + limit),
         meta: {
-          page: query.page,
-          limit: query.limit,
+          page,
+          limit,
           total,
-          totalPages: Math.ceil(total / query.limit),
+          totalPages: Math.ceil(total / limit),
         },
       };
     });
@@ -69,7 +70,6 @@ export class EventService {
     return this.citiesCache.getOrLoad(CITIES_KEY, () => this.store.listCities());
   }
 
-  /** Never cached: a fresh random number on every call. */
   seats(id: number): SeatsInfo {
     const event = this.store.peekById(id);
     if (!event) {
@@ -87,7 +87,6 @@ export class EventService {
     if (!updated) {
       throw new NotFoundError(`Event ${id} not found`);
     }
-    // Explicit invalidation: the single-event entry and every cached list page.
     this.itemCache.delete(String(id));
     this.listCache.clear();
     return updated;

@@ -6,11 +6,6 @@ import {
 } from '@app/shared';
 import type { EventService } from '../services/eventService.js';
 
-/**
- * Controllers are plain factories bound to a service. Express 5 forwards
- * rejected promises to the error middleware, so no try/catch is needed here.
- * Zod errors thrown by `parse` are turned into 400s by the global handler.
- */
 export function createEventController(service: EventService) {
   return {
     async list(req: Request, res: Response): Promise<void> {

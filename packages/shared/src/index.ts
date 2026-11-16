@@ -1,8 +1,5 @@
 import { z } from 'zod';
 
-/**
- * Core Event schema representing a single record in the events dataset.
- */
 export const EventSchema = z.object({
   id: z.number().int().positive(),
   title: z.string().min(1),
@@ -15,34 +12,43 @@ export const EventSchema = z.object({
 
 export type Event = z.infer<typeof EventSchema>;
 
-/** Alias for backwards compatibility inside the API layer */
 export const eventRecordSchema = EventSchema;
 export type EventRecord = Event;
 
-/** Empty string -> undefined so `?city=` behaves like "no filter". */
-const optionalText = z
-  .string()
-  .trim()
-  .max(100)
-  .optional()
-  .transform((value) => (value === '' ? undefined : value));
+const optionalText = z.preprocess((val) => {
+  const raw = Array.isArray(val) ? val[0] : val;
+  if (typeof raw !== 'string') {
+    return undefined;
+  }
+  const trimmed = raw.trim();
+  if (trimmed === '' || trimmed === 'undefined' || trimmed === 'null') {
+    return undefined;
+  }
+  return trimmed;
+}, z.string().max(100).optional());
 
-/**
- * Query parameters schema for `GET /events`.
- */
 export const ListEventsQuerySchema = z.object({
   city: optionalText,
   q: optionalText,
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(50).default(12),
+  page: z.preprocess((val) => {
+    const raw = Array.isArray(val) ? val[0] : val;
+    if (raw === undefined || raw === null || raw === '') {
+      return 1;
+    }
+    return raw;
+  }, z.coerce.number().int().min(1).catch(1)),
+  limit: z.preprocess((val) => {
+    const raw = Array.isArray(val) ? val[0] : val;
+    if (raw === undefined || raw === null || raw === '') {
+      return 12;
+    }
+    return raw;
+  }, z.coerce.number().int().min(1).max(50).catch(12)),
 });
 
 export type ListEventsQuery = z.infer<typeof ListEventsQuerySchema>;
 export const listEventsQuerySchema = ListEventsQuerySchema;
 
-/**
- * Route params schema for `/events/:id` and `/events/:id/seats`.
- */
 export const EventIdParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
@@ -50,9 +56,6 @@ export const EventIdParamsSchema = z.object({
 export type EventIdParams = z.infer<typeof EventIdParamsSchema>;
 export const eventIdParamsSchema = EventIdParamsSchema;
 
-/**
- * Request body schema for `PATCH /events/:id`.
- */
 export const UpdateEventBodySchema = z
   .object({
     title: z.string().trim().min(1).max(200).optional(),
@@ -66,13 +69,8 @@ export const UpdateEventBodySchema = z
 export type UpdateEventBody = z.infer<typeof UpdateEventBodySchema>;
 export const updateEventBodySchema = UpdateEventBodySchema;
 
-/**
- * Shared filter, pagination, and seats response schemas & types.
- */
 export interface EventFilter {
-  /** Case-insensitive exact city match. */
   city?: string | undefined;
-  /** Case-insensitive substring search over the title. */
   q?: string | undefined;
 }
 
@@ -99,4 +97,3 @@ export const SeatsInfoSchema = z.object({
 });
 
 export type SeatsInfo = z.infer<typeof SeatsInfoSchema>;
-

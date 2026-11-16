@@ -16,16 +16,6 @@ export interface SearchFiltersProps {
 
 const DEBOUNCE_MS = 300;
 
-/**
- * URL-driven filter bar + pagination.
- *
- * Race condition protection:
- * - Debounces `q` input by 300ms and cancels pending timers whenever a newer
- *   keystroke or filter selection occurs.
- * - Uses a monotonically increasing `navigationSeqRef` combined with React 19's
- *   `useTransition` (`router.replace`), which automatically aborts in-flight RSC
- *   fetches when superseded by a newer navigation.
- */
 export function SearchFilters({
   cities,
   initialCity,
@@ -35,16 +25,30 @@ export function SearchFilters({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
+
+  const [isPendingTransition, startTransition] = useTransition();
+  const [isPendingHard, setIsPendingHard] = useState(false);
+
+  const isPending = isPendingTransition || isPendingHard;
 
   const [query, setQuery] = useState(initialQuery);
   const [city, setCity] = useState(initialCity);
-  const navigationSeqRef = useRef(0);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTypingRef = useRef(false);
+  const submittedQueryRef = useRef(initialQuery.trim());
 
-  // Sync local controlled state if user navigates via browser back/forward
   useEffect(() => {
-    setQuery(initialQuery);
+    setIsPendingHard(false);
+    const currentUrlQ = (searchParams.get('q') ?? '').trim();
+    if (currentUrlQ === submittedQueryRef.current) {
+      isTypingRef.current = false;
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const incoming = initialQuery.trim();
+    if (!isTypingRef.current && incoming === submittedQueryRef.current) {
+      setQuery(initialQuery);
+    }
   }, [initialQuery]);
 
   useEffect(() => {
@@ -52,102 +56,118 @@ export function SearchFilters({
   }, [initialCity]);
 
   const navigateWithParams = useCallback(
-    (next: { city?: string; q?: string; page?: number }) => {
-      const seq = ++navigationSeqRef.current;
-      const params = new URLSearchParams(searchParams.toString());
+    (updates: { city?: string; q?: string; page?: number }, hard = false) => {
+      const currentQs = searchParams.toString();
+      const params = new URLSearchParams(currentQs);
 
-      const targetCity = next.city !== undefined ? next.city : city;
-      const targetQuery = next.q !== undefined ? next.q.trim() : query.trim();
-      const targetPage = next.page ?? 1;
-
-      if (targetCity) {
-        params.set('city', targetCity);
-      } else {
-        params.delete('city');
-      }
-
-      if (targetQuery) {
-        params.set('q', targetQuery);
-      } else {
-        params.delete('q');
-      }
-
-      if (targetPage > 1) {
-        params.set('page', String(targetPage));
-      } else {
-        params.delete('page');
-      }
-
-      const qs = params.toString();
-      const href = qs ? `${pathname}?${qs}` : pathname;
-
-      startTransition(() => {
-        if (navigationSeqRef.current === seq) {
-          router.replace(href, { scroll: false });
+      if (updates.city !== undefined) {
+        const cleanCity = updates.city.trim();
+        if (cleanCity) {
+          params.set('city', cleanCity);
+        } else {
+          params.delete('city');
         }
-      });
+      }
+
+      if (updates.q !== undefined) {
+        const cleanQ = updates.q.trim();
+        if (cleanQ.length > 0) {
+          params.set('q', cleanQ);
+        } else {
+          params.delete('q');
+        }
+      }
+
+      if (updates.page !== undefined) {
+        if (updates.page > 1) {
+          params.set('page', String(updates.page));
+        } else {
+          params.delete('page');
+        }
+      }
+
+      const newQs = params.toString();
+      const href = newQs ? `${pathname}?${newQs}` : pathname;
+      const currentHref = currentQs ? `${pathname}?${currentQs}` : pathname;
+
+      if (href === currentHref) {
+        setIsPendingHard(false);
+        isTypingRef.current = false;
+        return;
+      }
+
+      if (hard) {
+        setIsPendingHard(true);
+        window.location.assign(href);
+      } else {
+        startTransition(() => {
+          router.replace(href, { scroll: false });
+        });
+      }
     },
-    [city, pathname, query, router, searchParams],
+    [pathname, router, searchParams],
   );
 
-  // Debounced search effect for `query`
+  const navRef = useRef(navigateWithParams);
+
   useEffect(() => {
-    if (query.trim() === initialQuery.trim()) {
+    navRef.current = navigateWithParams;
+  }, [navigateWithParams]);
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (trimmed === submittedQueryRef.current) {
       return;
     }
 
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    debounceTimerRef.current = setTimeout(() => {
-      navigateWithParams({ q: query, page: 1 });
+    const timer = setTimeout(() => {
+      submittedQueryRef.current = trimmed;
+      navRef.current({ q: trimmed, page: 1 }, false);
     }, DEBOUNCE_MS);
 
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, [query, initialQuery, navigateWithParams]);
+    return () => clearTimeout(timer);
+  }, [query]);
 
-  const handleCityChange = (nextCity: string) => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    setCity(nextCity);
-    navigateWithParams({ city: nextCity, q: query, page: 1 });
+  const handleCityChange = (newCity: string) => {
+    isTypingRef.current = false;
+    submittedQueryRef.current = query.trim();
+    setCity(newCity);
+    navigateWithParams({ city: newCity, q: query, page: 1 }, true);
   };
 
   const handleReset = () => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
+    isTypingRef.current = false;
+    submittedQueryRef.current = '';
     setQuery('');
     setCity('');
-    navigateWithParams({ city: '', q: '', page: 1 });
+    navigateWithParams({ city: '', q: '', page: 1 }, true);
   };
 
-  const hasFilters = Boolean(city || query.trim());
+  const hasFilters = Boolean(city || query.trim() || searchParams.has('q'));
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <div className="relative flex flex-1 items-center">
+          <Search className="pointer-events-none absolute left-3 h-4 w-4 text-slate-400" />
           <Input
-            type="search"
+            type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              isTypingRef.current = true;
+              setQuery(e.target.value);
+            }}
             placeholder="Search events by title..."
             aria-label="Search events by title"
-            className="pl-9 pr-8"
+            className="pl-9 pr-10"
           />
           {isPending ? (
-            <Loader2
-              aria-label="Loading filtered results"
-              className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-blue-600"
-            />
+            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
+              <Loader2
+                aria-label="Loading filtered results"
+                className="h-4 w-4 animate-spin text-blue-600"
+              />
+            </div>
           ) : null}
         </div>
 
@@ -156,7 +176,7 @@ export function SearchFilters({
             value={city}
             onChange={(e) => handleCityChange(e.target.value)}
             aria-label="Filter by city"
-            className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+            className="h-9 rounded-md border border-slate-300 bg-white px-3 py-0 text-sm text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
           >
             <option value="">All cities</option>
             {cities.map((c) => (
@@ -168,7 +188,7 @@ export function SearchFilters({
 
           {hasFilters ? (
             <Button variant="outline" size="md" onClick={handleReset}>
-              <X className="h-3.5 w-3.5" />
+              <X className="mr-1 h-3.5 w-3.5" />
               <span>Reset</span>
             </Button>
           ) : null}
@@ -188,19 +208,19 @@ export function SearchFilters({
               variant="outline"
               size="sm"
               disabled={meta.page <= 1 || isPending}
-              onClick={() => navigateWithParams({ page: meta.page - 1 })}
+              onClick={() => navigateWithParams({ page: meta.page - 1 }, true)}
             >
-              <ChevronLeft className="h-3.5 w-3.5" />
+              <ChevronLeft className="mr-1 h-3.5 w-3.5" />
               <span>Previous</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               disabled={meta.page >= meta.totalPages || isPending}
-              onClick={() => navigateWithParams({ page: meta.page + 1 })}
+              onClick={() => navigateWithParams({ page: meta.page + 1 }, true)}
             >
               <span>Next</span>
-              <ChevronRight className="h-3.5 w-3.5" />
+              <ChevronRight className="ml-1 h-3.5 w-3.5" />
             </Button>
           </div>
         ) : null}
@@ -208,4 +228,3 @@ export function SearchFilters({
     </div>
   );
 }
-

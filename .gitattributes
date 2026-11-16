@@ -1,0 +1,5 @@
+# Shell scripts and files with inline sh/nginx config must keep LF endings,
+# otherwise a Windows clone (core.autocrlf=true) breaks them inside Linux containers.
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+nginx/*.conf    text eol=lf

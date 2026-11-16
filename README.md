@@ -18,6 +18,7 @@ A production-ready event discovery and live seat-telemetry platform built as a `
 ├── docker-compose.yml    # Single-command multi-container orchestration (proxy + web + api)
 ├── pnpm-workspace.yaml   # pnpm workspace configuration
 ├── .env.example          # Default environment variables template
+├── .gitattributes        # Forces LF for *.sh, Dockerfiles and nginx config (safe Windows clones)
 ├── .dockerignore         # Excludes node_modules, dist, .next, and secrets from Docker build contexts
 └── .gitignore            # Unified root gitignore excluding all build artifacts and local env files
 ```
@@ -40,35 +41,52 @@ docker compose up --build
 - **Application URL (Nginx Reverse Proxy — the only port published to the host):** [http://localhost:3000](http://localhost:3000)
 - `web` (`expose: ["3000"]`) and `api` (`expose: ["4000"]`) communicate strictly over the internal Docker network and are not directly exposed to external clients.
 
+To reset the edited events back to the seed: `docker compose down -v` (removes the `api_data` and `internal_secret` volumes).
+
 ### Option B: Local Development (via `pnpm`)
 
-**Prerequisites:** Node.js `>=20.19` / `22 LTS` and `pnpm` (or `corepack enable`).
+**Prerequisites:** Node.js `22 LTS` (`apps/api` declares `"engines": { "node": ">=22" }`) and `pnpm 10` (`corepack enable` picks up `packageManager: pnpm@10.6.5`).
 
 1. **Install dependencies from the monorepo root:**
    ```bash
    pnpm install --frozen-lockfile
    ```
 
-2. **Typecheck all workspace packages (works immediately before any build):**
+2. **Create the env files and one shared `INTERNAL_SECRET`.** `apps/api` loads `apps/api/.env` (`dotenv`), `apps/web` loads `apps/web/.env.local` (Next.js). Both **must contain the same** `INTERNAL_SECRET`, otherwise the API ignores `x-client-ip` from SSR and every user shares one rate-limit bucket.
+
+   **bash / Git Bash / macOS / Linux:**
    ```bash
-   pnpm -r typecheck
+   cp apps/api/.env.example apps/api/.env
+   cp apps/web/.env.example apps/web/.env.local
+   SECRET="$(node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")"
+   sed -i.bak "s|^INTERNAL_SECRET=.*|INTERNAL_SECRET=${SECRET}|" apps/api/.env apps/web/.env.local
+   rm -f apps/api/.env.bak apps/web/.env.local.bak
    ```
 
-3. **Generate a local `INTERNAL_SECRET`** (for local runs without Docker; copy `.env.example` to `apps/api/.env` and `apps/web/.env.local`):
-   ```bash
-   openssl rand -base64 32
-   # or with Node.js:
-   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+   **PowerShell (Windows):**
+   ```powershell
+   Copy-Item apps/api/.env.example apps/api/.env
+   Copy-Item apps/web/.env.example apps/web/.env.local
+   $bytes = New-Object byte[] 32
+   [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+   $secret = [Convert]::ToBase64String($bytes)
+   foreach ($f in 'apps/api/.env', 'apps/web/.env.local') {
+     (Get-Content $f) -replace '^INTERNAL_SECRET=.*', "INTERNAL_SECRET=$secret" | Set-Content -Encoding utf8 $f
+   }
    ```
 
-4. **Start the backend and frontend in development mode:**
+3. **Start the backend and frontend in development mode:**
    ```bash
-   # Terminal 1 — Start the Express API on http://localhost:4000
+   # Terminal 1 — Express API on http://localhost:4000
    pnpm dev:api
 
-   # Terminal 2 — Start the Next.js 15 web app on http://localhost:3000
+   # Terminal 2 — Next.js 15 web app on http://localhost:3000
    pnpm dev:web
    ```
+
+> **Note — IP-spoofing protection works only in Docker.** In Docker Compose, Nginx overwrites `X-Forwarded-For` / `X-Real-IP` with the real socket address and strips `x-client-ip` / `x-internal-secret` / `x-rate-limit-counted`. Locally there is no Nginx in front of `web`, so `web` trusts whatever `X-Forwarded-For` the browser (or `curl`) sends, and a client can pick its own rate-limit bucket. The API itself never trusts these headers without a valid `x-internal-secret`.
+
+`.env.example` in the repo root documents the variables Docker Compose substitutes (`RATE_LIMIT_MAX`, `CACHE_TTL_MS`, …); it is optional — copy it to `.env` only to override defaults.
 
 ---
 
@@ -77,8 +95,12 @@ docker compose up --build
 Run all workspace tests (`apps/api` and `apps/web`) from the root directory using `node:test` + `tsx` (with fake timers and isolated `os.tmpdir()` runtime data):
 
 ```bash
+pnpm install --frozen-lockfile
+pnpm -r typecheck
 pnpm test
 ```
+
+The API test suite sets `LOG_LEVEL=silent` (see `apps/api/src/lib/logger.ts`) so the expected `4xx`/`5xx` error logs don't clutter the output; run `LOG_LEVEL=info pnpm --filter @app/api test` to see them. Production keeps the default `info` level.
 
 You can also run each package individually:
 ```bash
@@ -92,7 +114,7 @@ pnpm --filter @app/web test
 - **API Rate Limit:** Per-`x-client-ip` counters, cache-hit accounting, anti-spoofing (ignoring forged `x-client-ip`/`X-Forwarded-For`), `429 RATE_LIMITED` + `Retry-After`, fake-timer window reset, and isolated `internal` bucket.
 - **API Validation & Errors:** `400 VALIDATION_ERROR` with field `details` (`page=abc/0/-1`, `limit`, oversized `q`/`city`, invalid/empty PATCH), `400 INVALID_JSON`, `413`, `415`, `404`, `405` (`Allow`), `500 INTERNAL_ERROR` (no stack trace leak), and matching `x-request-id` / `error.requestId`.
 - **API Persistence, Seats & Shutdown:** Seed-to-runtime copy, restart persistence, concurrent field-merging `PATCH`, write-error `500` rollback consistency, uncached instant `/seats` (`0..capacity`), and `SIGTERM` graceful draining.
-- **Web Unit Tests (`apps/web/tests/web.test.ts`):** Favorites cookie parsing/deduplication/limit, API error-to-UI message mapping (`404`/`429`/`5xx`/timeout/network), and filter URL builder (`buildHref`).
+- **Web Unit Tests (`apps/web/tests/web.test.ts`):** Favorites cookie parsing/deduplication/limit, API error-to-UI message mapping (`404`/`429`/`5xx`/timeout/network), filter URL builder (`buildHref`), shared `UpdateEventBodySchema` limits, and the build-time selection of the 15 nearest upcoming events (`pickNearestUpcoming` / `collectNearestUpcoming`: past events dropped, sorting, cap, pagination stop, fewer than 15).
 
 ---
 
@@ -101,7 +123,7 @@ pnpm --filter @app/web test
 | Data / Endpoint | Where It Is Cached | TTL & Size Limit | How It Is Invalidated |
 | :--- | :--- | :--- | :--- |
 | **`GET /events`** (Filtered & paginated event list) | **Backend (`apps/api`):** In-memory `PromiseCache<PaginatedEvents>` backed by `lru-cache` keyed by normalized `(city, q, page, limit)`.<br>**Frontend (`apps/web`):** `cache: 'no-store'` on `/` (`force-dynamic`) so URL filters always reflect live API cache state. | **TTL:** `60,000 ms` (`60s`, configurable via `CACHE_TTL_MS`)<br>**Max Size:** `500` entries (`CACHE_MAX_ENTRIES`) | Automatically expires after TTL, evicts least-recently-used entries when full, evicted immediately on Promise rejection, and **explicitly cleared (`listCache.clear()`)** on `PATCH /events/:id` + Next.js `revalidatePath('/')`. |
-| **`GET /events/:id`** (Single event details) | **Backend (`apps/api`):** In-memory `PromiseCache<Event \| null>` backed by `lru-cache` keyed by `id`.<br>**Frontend (`apps/web`):** Pre-rendered at build time for the **15 nearest events** (`generateStaticParams` / SSG), and cached via Next.js Data & Full Route Cache (`cache: 'force-cache'`, `dynamicParams = true`) on first request for the remaining 45 events. | **Backend TTL:** `60,000 ms` (`60s`), max `500` entries.<br>**Next.js Full Route Cache:** Persistent until revalidated. | **Backend:** Explicitly evicted via `itemCache.delete(String(id))` on `PATCH /events/:id`.<br>**Frontend:** Explicitly purged via `revalidatePath('/events/' + id)` and `revalidatePath('/events/' + id + '/edit')` inside the `updateEventAction` Server Action. |
+| **`GET /events/:id`** (Single event details) | **Backend (`apps/api`):** In-memory `PromiseCache<Event \| null>` backed by `lru-cache` keyed by `id`.<br>**Frontend (`apps/web`):** Pre-rendered at build time for the **15 nearest upcoming events relative to build time** (`generateStaticParams` / SSG), and cached via Next.js Data & Full Route Cache (`cache: 'force-cache'`, `dynamicParams = true`) on first request for every other event. | **Backend TTL:** `60,000 ms` (`60s`), max `500` entries.<br>**Next.js Full Route Cache:** Persistent until revalidated. | **Backend:** Explicitly evicted via `itemCache.delete(String(id))` on `PATCH /events/:id`.<br>**Frontend:** Explicitly purged via `revalidatePath('/events/' + id)` and `revalidatePath('/events/' + id + '/edit')` inside the `updateEventAction` Server Action. |
 | **`GET /cities`** (Unique sorted city list) | **Backend (`apps/api`):** In-memory `PromiseCache<string[]>` backed by `lru-cache` under key `'cities'`. | **TTL:** `60,000 ms` (`60s`)<br>**Max Size:** `500` entries | Expires automatically after the `60s` TTL (city list is static across title/description edits). |
 | **`GET /events/:id/seats`** (Available seats counter) | **NEVER CACHED.** Served directly from in-memory capacity metadata (`peekById`) with `Cache-Control: no-store` on both `apps/api` and the Next.js `/api/events/[id]/seats` Route Handler proxy. | **TTL:** `0` (`no-store`) | N/A — generates a fresh cryptographically random integer (`0..capacity`) on every request without artificial DB latency. |
 | **User Favorites (`/favorites`)** | **Per-User HTTP-Only Cookie** (`afisha_favorites`, `httpOnly: true`, `sameSite: 'lax'`, `path: '/'`). Never stored in any shared server cache (`GET /api/favorites` uses `no-store` + `Vary: Cookie`; static HTML/ISR contains zero user favorites). | **Cookie Max-Age:** `30 days` (`2,592,000s`) | Updated per user via the `setFavoriteAction` Server Action (`Set-Cookie`) + `revalidatePath('/favorites')`. |
@@ -109,7 +131,38 @@ pnpm --filter @app/web test
 
 ---
 
-## 4. Architectural Decisions
+## 4. Decisions on Ambiguous Requirements
+
+Where the assignment leaves room for interpretation, these are the choices made (details in the sections referenced):
+
+1. **"15 nearest events" are pre-rendered relative to build time.** `generateStaticParams` (`apps/web/src/app/events/[id]/page.tsx`) pages through `GET /events` (sorted by date, `limit=50`, the API maximum), drops events dated before `Date.now()` at build time, and takes the first 15 (`pickNearestUpcoming` / `collectNearestUpcoming` in `apps/web/src/lib/nearest-events.ts`). If fewer than 15 upcoming events exist, all of them are pre-rendered. All other ids render on demand (`dynamicParams = true`) and are then cached.
+2. **Page size:** `12` events per page on `/`; the API accepts `limit` `1..50` (default `12`) and `page >= 1`.
+3. **Search:** `q` is a case-insensitive substring match on the **title only** (trimmed, max 100 chars). The city filter is an exact, case-insensitive match on `city`. Results are sorted by date, then by id.
+4. **Available seats** are simulated: every `GET /events/:id/seats` returns a fresh random integer in `0..capacity` (never cached, no simulated DB latency). The event page polls it every 5 s and charts the last samples.
+5. **Rate limit: 60 requests/min per client IP** (fixed window, `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS`). What counts as one unit: opening `/` or `/favorites` (one preflight in `middleware.ts`, regardless of how many API calls the SSR makes), each debounced search / filter / pagination RSC request on `/`, each seats poll (12/min with an open event page), and each `PATCH` from the edit form. Cache hits count too: the limiter runs before the cache. Exceeding the limit returns `429` + `Retry-After`.
+6. **Nginx in front of `web`** is the only published port (`3000`); it overwrites `X-Forwarded-For` / `X-Real-IP` and strips internal headers, so the client IP that `web` forwards to `api` cannot be spoofed (see §5.2).
+7. **The `internal` rate-limit key:** build-time and ISR fetches (`generateStaticParams`, `fetchEventById` with `force-cache`) carry the secret but no client IP. They share one `internal` bucket of `max(RATE_LIMIT_MAX × 100, 1000)` req/min, so the static pages are not fragmented per IP (trade-off in §5.2).
+8. **`INTERNAL_SECRET` is generated at runtime** by the one-shot `secret-init` service into a read-only shared volume. It is never in git, image layers or `docker inspect` env (see §5.9).
+9. **Persistence:** edits are written atomically to a JSON file on the `api_data` named volume; they survive `docker compose restart`/`up` and are reset with `docker compose down -v` (see §5.6).
+10. **No `loading.tsx` on `/`, `/favorites`, `/events/[id]`:** a segment-level `loading.tsx` broke `searchParams`-only soft navigations on `/` and made `/events/[id]` stream `200` before `notFound()`. Loading states use `<Suspense>` inside the pages instead (see §5.3).
+11. **Field limits for editing** are our own choice: the assignment does not define them (see below).
+12. **UI language is English** — all UI texts, validation and API error messages.
+
+### Field Validation Limits
+
+The assignment does not specify limits for editable fields, so they were chosen deliberately and defined once in `packages/shared/src/index.ts`:
+
+| Field | Min | Max | Rules |
+| :--- | :---: | :---: | :--- |
+| `title` | `EVENT_TITLE_MIN = 3` | `EVENT_TITLE_MAX = 120` | Leading/trailing whitespace is trimmed before the length check; whitespace-only strings are rejected. |
+| `description` | `EVENT_DESCRIPTION_MIN = 10` | `EVENT_DESCRIPTION_MAX = 2000` | Same trimming and rejection of whitespace-only input. |
+
+- The body is `.strict()` (unknown keys → `400`), and at least one of `title` / `description` must be present.
+- **One schema everywhere:** `UpdateEventBodySchema` from `@app/shared` validates `PATCH /events/:id` in the API (`event.controller.ts`), the `updateEventAction` Server Action (`apps/web/src/app/actions/events.ts`), and the same `EVENT_*` constants drive the form (`edit-event-form.tsx`: `minLength`/`maxLength`, live counters, hints). Client, server action and API therefore can never disagree.
+
+---
+
+## 5. Architectural Decisions
 
 ### 1. "Thundering Herd" Protection via Promise Caching (`apps/api/src/cache/promiseCache.ts`)
 `PromiseCache<V>` wraps `LRUCache<string, Promise<V>>`. Both the cache lookup (`this.cache.get(key)`) and the insertion of the in-flight `Promise<V>` (`this.cache.set(key, promise)`) execute **synchronously** before any `await`.
@@ -152,7 +205,7 @@ pnpm --filter @app/web test
   - **Event Details (`src/app/events/[id]/page.tsx`):** Once the event record is resolved, live seat telemetry is isolated inside `<Suspense fallback={<SeatsSectionSkeleton />}><SeatsSection ... /></Suspense>`.
 
 ### 4. Solving the Docker Build-Time API Dilemma (`apps/web/Dockerfile`)
-Inside Stage 2 (`builder`) of `apps/web/Dockerfile`, an ephemeral random secret is generated inside the same `RUN` command (`INTERNAL_SECRET="$(head -c 32 /dev/urandom | base64 | tr -d '\n')"` — never passed via `ARG`), `@app/api` starts in the background on `127.0.0.1:4000`, `wget` waits for `/health`, `pnpm --filter @app/web build` pre-renders the 15 nearest events via `generateStaticParams`, `kill -TERM` cleanly drains and stops the temporary API, and `grep` verifies the ephemeral build secret did not leak into `.next/standalone` or `.next/static`. Stage 3 (`runner`) runs as non-root user `nextjs` (`UID 1001`).
+Inside Stage 2 (`builder`) of `apps/web/Dockerfile`, an ephemeral random secret is generated inside the same `RUN` command (`INTERNAL_SECRET="$(head -c 32 /dev/urandom | base64 | tr -d '\n')"` — never passed via `ARG`), `@app/api` starts in the background on `127.0.0.1:4000`, `wget` waits for `/health`, `pnpm --filter @app/web build` pre-renders the 15 nearest upcoming events via `generateStaticParams`, `kill -TERM` cleanly drains and stops the temporary API, and `grep` verifies the ephemeral build secret did not leak into `.next/standalone` or `.next/static`. Stage 3 (`runner`) runs as non-root user `nextjs` (`UID 1001`).
 
 ### 5. Search, City Filter & Pagination Soft Navigation (`search-filters.tsx`)
 - All filter transitions on `/` — debounced search input (`300ms`), city dropdown selection (`handleCityChange`), pagination controls (`EventsPagination`), and filter reset (`handleReset`) — use `startTransition(() => router.replace(href, { scroll: false }))` with zero full-page reloads.
@@ -188,25 +241,59 @@ Inside Stage 2 (`builder`) of `apps/web/Dockerfile`, an ephemeral random secret 
 
 ---
 
-## 5. `next build` Output & Bundle Verification
+## 6. Production Build of `apps/api`
+
+**How:** `pnpm --filter @app/api build` runs `apps/api/scripts/build.mjs`, which uses **esbuild** to bundle `src/server.ts` together with the workspace package `@app/shared` into a single ESM file `dist/server.js` (`platform: 'node'`, `target: 'node22'`, sourcemap). Third-party dependencies (`express`, `cors`, `dotenv`, `express-rate-limit`, `lru-cache`, `zod`) stay **external** and are installed as regular `node_modules`. In `apps/api/Dockerfile` the builder stage runs the bundle and then `pnpm --filter @app/api --prod deploy --legacy /prod/api` to get a pruned production-only `node_modules`. The runtime stage (`node:22-alpine`, non-root `node` user) contains only `dist/`, prod `node_modules`, `package.json` and the seed data, and starts with `node dist/server.js`.
+
+**Why:** `@app/shared` is consumed as TypeScript source (no separate build step), so inlining it into the bundle removes any need for workspace symlinks or `tsx` at runtime. esbuild compiles the whole API in milliseconds with a 20-line config, while `tsc --noEmit` stays the single source of type-checking. Keeping npm dependencies external (instead of bundling everything) leaves the runtime image with ordinary, auditable packages and avoids bundling issues with dynamic `require`s in Express middleware.
+
+---
+
+## 7. Graceful Shutdown (`SIGTERM`)
+
+Implemented in `apps/api/src/lib/shutdown.ts`, wired in `apps/api/src/server.ts`:
+
+1. On `SIGTERM` (also `SIGINT`), the server logs `[shutdown] Received SIGTERM…` and calls `server.close()` — it stops accepting **new** connections.
+2. **In-flight requests are allowed to finish.** Responses sent during shutdown get `Connection: close`, and idle keep-alive sockets are closed (`closeIdleConnections()`), so clients don't hold the process open.
+3. After the HTTP server has closed, `store.flushPendingWrites()` waits for any queued atomic JSON writes from `PATCH`, so no edit is lost or half-written.
+4. Exit code `0` and `[shutdown] All active requests finished. Server closed cleanly.`
+5. **Timeout:** if draining takes longer than `SHUTDOWN_TIMEOUT_MS` (`10000` ms in `docker-compose.yml`, default `10000`), the process logs `Could not drain connections within …ms; forcing exit.` and exits with code `1`. Docker's default stop grace period is also 10 s.
+6. `unhandledRejection` / `uncaughtException` are logged and go through the same shutdown path with exit code `1`.
+
+**How to verify:**
+```bash
+docker compose up -d --build
+docker compose stop api          # sends SIGTERM
+docker compose logs api | tail -n 5
+# [shutdown] Received SIGTERM. Stopping new connections and draining active requests...
+# [shutdown] All active requests finished. Server closed cleanly.
+```
+To see draining of an in-flight request, start a slow request (an uncached `GET /events` with a new query takes 300–800 ms of simulated DB latency) from inside the network, e.g. `docker compose exec web wget -qO- "http://api:4000/events?q=drain-test"`, and run `docker compose stop api` at the same time: the request still completes with `200`. The automated test `shutdown: waits for in-flight slow request to return 200, rejects new connections, and closes server cleanly` in `apps/api/tests/api.test.ts` covers the same scenario.
+
+---
+
+## 8. `next build` Output & Bundle Verification
+
+Captured from a clean Docker build (`docker compose build --no-cache --progress=plain web`, Next.js 15.5.29, inside the `builder` stage of `apps/web/Dockerfile`):
 
 ```text
 Route (app)                                 Size  First Load JS
-┌ ƒ /                                    3.91 kB         119 kB
-├ ○ /_not-found                            131 B         103 kB
-├ ƒ /api/events/[id]/seats                 131 B         103 kB
-├ ƒ /api/favorites                         131 B         103 kB
-├ ● /events/[id]                         4.72 kB         120 kB
+┌ ƒ /                                    4.67 kB         120 kB
+├ ○ /_not-found                            132 B         103 kB
+├ ƒ /api/events/[id]/seats                 132 B         103 kB
+├ ƒ /api/favorites                         132 B         103 kB
+├ ● /events/[id]                         6.56 kB         148 kB
 ├   ├ /events/24
 ├   ├ /events/11
 ├   ├ /events/21
 ├   └ [+12 more paths]
-├ ƒ /events/[id]/edit                     2.2 kB         118 kB
-└ ƒ /favorites                            3.6 kB         119 kB
+├ ƒ /events/[id]/edit                    3.17 kB         145 kB
+└ ƒ /favorites                            4.7 kB         120 kB
 + First Load JS shared by all             103 kB
-  ├ chunks/70-ad1663d66282861a.js        46.6 kB
-  ├ chunks/a9ea9537-0f3936cf873287d4.js  54.2 kB
-  └ other shared chunks (total)          2.08 kB
+  ├ chunks/901-cf72b069db1430b6.js       46.8 kB
+  ├ chunks/e7e3044d-0d6b6d5e0b3db82f.js  54.2 kB
+  └ other shared chunks (total)          2.04 kB
+
 
 ƒ Middleware                             35.6 kB
 
@@ -214,3 +301,49 @@ Route (app)                                 Size  First Load JS
 ●  (SSG)      prerendered as static HTML (uses generateStaticParams)
 ƒ  (Dynamic)  server-rendered on demand
 ```
+
+`/events/[id]` shows `●` with 15 pre-rendered paths (3 listed + 12 more): the 15 nearest upcoming events at build time.
+
+### Proof: recharts is not in the `/` and `/favorites` bundles
+
+The chart (`seats-fill-chart.tsx`, the only file importing `recharts`) is loaded with `next/dynamic` from `seats-poller.tsx`, which is rendered only on `/events/[id]`. `apps/web/scripts/check-bundles.mjs` verifies this on the build output. It finds every client chunk containing recharts code (the `recharts-wrapper` class name), checks the initial chunks of each page in `app-build-manifest.json`, and shows which `next/dynamic` import loads the chunk via `react-loadable-manifest.json`. It exits with `1` if recharts is in `/` or `/favorites`.
+
+Run against the production image (no rebuild needed):
+
+```bash
+docker compose build web
+docker run --rm -v "$(pwd)/apps/web/scripts:/check:ro" --entrypoint node \
+  testafisha-web:latest /check/check-bundles.mjs apps/web/.next
+```
+
+(The image name `testafisha-web` comes from the Compose project name, i.e. the repo folder name. Git Bash on Windows: prefix with `MSYS_NO_PATHCONV=1` and use `$(pwd -W)`. After a local `pnpm --filter @app/web build`: `node apps/web/scripts/check-bundles.mjs apps/web/.next`.)
+
+Output:
+
+```text
+Client chunks scanned: 28
+Chunks containing recharts ("recharts-wrapper"):
+  static/chunks/422.dc81ce4abeeed819.js
+
+Initial JS per page (app-build-manifest.json):
+  /_not-found/page              5 chunks  no recharts
+  /events/[id]/edit/page        8 chunks  no recharts
+  /events/[id]/page             8 chunks  no recharts
+  /page                         7 chunks  no recharts
+  /favorites/page               7 chunks  no recharts
+
+Lazy chunks (next/dynamic, react-loadable-manifest.json):
+  components/seats-poller.tsx -> @/components/seats-fill-chart -> static/chunks/422.dc81ce4abeeed819.js  [react-loadable-manifest.json]
+
+OK: recharts is not in the bundles of / and /favorites.
+```
+
+Cross-check with other recharts class names. Only the same lazy chunk (≈ 401 kB on disk) matches:
+
+```bash
+docker run --rm --entrypoint sh testafisha-web:latest -c \
+  "cd apps/web/.next/static/chunks && grep -l -E 'recharts-(surface|cartesian-grid|tooltip-wrapper)' -r ."
+# ./422.dc81ce4abeeed819.js
+```
+
+So `/` and `/favorites` (120 kB First Load JS each) contain no recharts code. On `/events/[id]` the chart chunk is fetched lazily only after the seats section mounts on the client, which is why it does not appear in that page's initial chunk list either.

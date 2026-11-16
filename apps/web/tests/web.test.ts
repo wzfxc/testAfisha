@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  EVENT_DESCRIPTION_MAX,
+  EVENT_DESCRIPTION_MIN,
+  EVENT_TITLE_MAX,
+  EVENT_TITLE_MIN,
+  UpdateEventBodySchema,
+} from '@app/shared';
+import {
   ApiHttpError,
   ApiUnavailableError,
   formatUserError,
@@ -60,5 +67,29 @@ test('buildHref: omits empty q and page=1 while preserving active filters and pa
   assert.equal(buildHref('/', { q: '   ', city: 'Kyiv', page: 1 }), '/?city=Kyiv');
   assert.equal(buildHref('/', { q: 'jazz', city: 'Kyiv', page: 2 }), '/?city=Kyiv&q=jazz&page=2');
   assert.equal(buildHref('/', { q: 'jazz', page: 1 }), '/?q=jazz');
+});
+
+test('form validation: enforces shared title and description length bounds and trims whitespace', () => {
+  const valid = UpdateEventBodySchema.safeParse({
+    title: '  Summer Jazz Night  ',
+    description: '  A curated evening of live jazz performances in Kyiv.  ',
+  });
+  assert.equal(valid.success, true);
+  if (valid.success) {
+    assert.equal(valid.data.title, 'Summer Jazz Night');
+  }
+
+  assert.equal(UpdateEventBodySchema.safeParse({ title: '   ' }).success, false);
+  assert.equal(UpdateEventBodySchema.safeParse({ title: 'a'.repeat(EVENT_TITLE_MIN - 1) }).success, false);
+  assert.equal(UpdateEventBodySchema.safeParse({ title: 'a'.repeat(EVENT_TITLE_MAX + 1) }).success, false);
+  assert.equal(UpdateEventBodySchema.safeParse({ description: '          ' }).success, false);
+  assert.equal(
+    UpdateEventBodySchema.safeParse({ description: 'd'.repeat(EVENT_DESCRIPTION_MIN - 1) }).success,
+    false,
+  );
+  assert.equal(
+    UpdateEventBodySchema.safeParse({ description: 'd'.repeat(EVENT_DESCRIPTION_MAX + 1) }).success,
+    false,
+  );
 });
 

@@ -63,10 +63,25 @@ export const EventIdParamsSchema = z.object({
 export type EventIdParams = z.infer<typeof EventIdParamsSchema>;
 export const eventIdParamsSchema = EventIdParamsSchema;
 
+export const EVENT_TITLE_MIN = 3;
+export const EVENT_TITLE_MAX = 120;
+export const EVENT_DESCRIPTION_MIN = 10;
+export const EVENT_DESCRIPTION_MAX = 2000;
+
 export const UpdateEventBodySchema = z
   .object({
-    title: z.string().trim().min(1).max(200).optional(),
-    description: z.string().trim().min(1).max(5000).optional(),
+    title: z
+      .string()
+      .trim()
+      .min(EVENT_TITLE_MIN, `Title must be at least ${EVENT_TITLE_MIN} characters`)
+      .max(EVENT_TITLE_MAX, `Title must be at most ${EVENT_TITLE_MAX} characters`)
+      .optional(),
+    description: z
+      .string()
+      .trim()
+      .min(EVENT_DESCRIPTION_MIN, `Description must be at least ${EVENT_DESCRIPTION_MIN} characters`)
+      .max(EVENT_DESCRIPTION_MAX, `Description must be at most ${EVENT_DESCRIPTION_MAX} characters`)
+      .optional(),
   })
   .strict()
   .refine((body) => body.title !== undefined || body.description !== undefined, {

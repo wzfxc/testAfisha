@@ -4,7 +4,13 @@ import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { CheckCircle2, AlertCircle, Loader2, Save } from 'lucide-react';
-import type { Event } from '@app/shared';
+import {
+  EVENT_DESCRIPTION_MAX,
+  EVENT_DESCRIPTION_MIN,
+  EVENT_TITLE_MAX,
+  EVENT_TITLE_MIN,
+  type Event,
+} from '@app/shared';
 import {
   updateEventAction,
   type UpdateEventActionState,
@@ -97,16 +103,33 @@ export function EditEventForm({ event }: EditEventFormProps) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
-          maxLength={200}
+          minLength={EVENT_TITLE_MIN}
+          maxLength={EVENT_TITLE_MAX}
           readOnly={isPending}
           aria-invalid={hasTitleError || undefined}
           aria-describedby={hasTitleError ? 'title-error' : undefined}
         />
-        {state.fieldErrors?.title ? (
-          <p id="title-error" className="text-xs text-red-600">
-            {state.fieldErrors.title[0]}
-          </p>
-        ) : null}
+        <div className="flex items-start justify-between gap-2 text-xs">
+          {state.fieldErrors?.title ? (
+            <p id="title-error" className="text-red-600">
+              {state.fieldErrors.title[0]}
+            </p>
+          ) : (
+            <span className="text-slate-400">
+              Min {EVENT_TITLE_MIN} characters
+            </span>
+          )}
+          <span
+            className={
+              title.trim().length > EVENT_TITLE_MAX ||
+              (title.trim().length > 0 && title.trim().length < EVENT_TITLE_MIN)
+                ? 'shrink-0 text-red-600'
+                : 'shrink-0 text-slate-400'
+            }
+          >
+            {title.length} / {EVENT_TITLE_MAX}
+          </span>
+        </div>
       </div>
 
       <div className="space-y-1.5">
@@ -123,17 +146,35 @@ export function EditEventForm({ event }: EditEventFormProps) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           required
-          maxLength={5000}
+          minLength={EVENT_DESCRIPTION_MIN}
+          maxLength={EVENT_DESCRIPTION_MAX}
           readOnly={isPending}
           aria-invalid={hasDescriptionError || undefined}
           aria-describedby={hasDescriptionError ? 'description-error' : undefined}
           className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 aria-[invalid=true]:border-red-500"
         />
-        {state.fieldErrors?.description ? (
-          <p id="description-error" className="text-xs text-red-600">
-            {state.fieldErrors.description[0]}
-          </p>
-        ) : null}
+        <div className="flex items-start justify-between gap-2 text-xs">
+          {state.fieldErrors?.description ? (
+            <p id="description-error" className="text-red-600">
+              {state.fieldErrors.description[0]}
+            </p>
+          ) : (
+            <span className="text-slate-400">
+              Min {EVENT_DESCRIPTION_MIN} characters
+            </span>
+          )}
+          <span
+            className={
+              description.trim().length > EVENT_DESCRIPTION_MAX ||
+              (description.trim().length > 0 &&
+                description.trim().length < EVENT_DESCRIPTION_MIN)
+                ? 'shrink-0 text-red-600'
+                : 'shrink-0 text-slate-400'
+            }
+          >
+            {description.length} / {EVENT_DESCRIPTION_MAX}
+          </span>
+        </div>
       </div>
 
       <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4">

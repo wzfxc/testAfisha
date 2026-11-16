@@ -7,6 +7,10 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import {
   ApiErrorResponseSchema,
+  EVENT_DESCRIPTION_MAX,
+  EVENT_DESCRIPTION_MIN,
+  EVENT_TITLE_MAX,
+  EVENT_TITLE_MIN,
   type Event,
   type PaginatedEvents,
   type SeatsInfo,
@@ -401,9 +405,13 @@ test('errors: returns 400 VALIDATION_ERROR with field details for invalid query 
 
   const invalidBodies: Array<{ body: Record<string, unknown>; field: string }> = [
     { body: { title: '' }, field: 'title' },
-    { body: { title: 't'.repeat(201) }, field: 'title' },
+    { body: { title: '     ' }, field: 'title' },
+    { body: { title: 't'.repeat(EVENT_TITLE_MIN - 1) }, field: 'title' },
+    { body: { title: 't'.repeat(EVENT_TITLE_MAX + 1) }, field: 'title' },
     { body: { description: '' }, field: 'description' },
-    { body: { description: 'd'.repeat(5001) }, field: 'description' },
+    { body: { description: '          ' }, field: 'description' },
+    { body: { description: 'd'.repeat(EVENT_DESCRIPTION_MIN - 1) }, field: 'description' },
+    { body: { description: 'd'.repeat(EVENT_DESCRIPTION_MAX + 1) }, field: 'description' },
     { body: { extraField: 'nope' }, field: 'extraField' },
     { body: {}, field: 'body' },
   ];
